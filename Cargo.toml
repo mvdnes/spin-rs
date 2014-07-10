@@ -1,0 +1,9 @@
+[package]
+
+name = "spinlock-rs"
+version = "0.1.0"
+authors = [ "mvdnes" ]
+
+[[lib]]
+
+name = "spinlock"
