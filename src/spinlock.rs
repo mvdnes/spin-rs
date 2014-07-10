@@ -6,23 +6,23 @@ use std::ty::Unsafe;
 use std::rt::local::Local;
 use std::rt::task::Task;
 
-pub struct SpinLock<T>
+pub struct Spinlock<T>
 {
     lock: AtomicBool,
     data: Unsafe<T>,
 }
 
-pub struct SpinLockGuard<'a, T>
+pub struct SpinlockGuard<'a, T>
 {
     lock: &'a AtomicBool,
     data: &'a mut T,
 }
 
-impl<T: Send> SpinLock<T>
+impl<T: Send> Spinlock<T>
 {
-    pub fn new(user_data: T) -> SpinLock<T>
+    pub fn new(user_data: T) -> Spinlock<T>
     {
-        SpinLock
+        Spinlock
         {
             lock: AtomicBool::new(false),
             data: Unsafe::new(user_data),
@@ -40,10 +40,10 @@ impl<T: Send> SpinLock<T>
         }
     }
 
-    pub fn lock<'a>(&'a self) -> SpinLockGuard<'a, T>
+    pub fn lock<'a>(&'a self) -> SpinlockGuard<'a, T>
     {
         self._lock();
-        SpinLockGuard
+        SpinlockGuard
         {
             lock: &self.lock,
             data: unsafe { &mut *self.data.get() },
@@ -51,18 +51,18 @@ impl<T: Send> SpinLock<T>
     }
 }
 
-impl<'a, T: Send> Deref<T> for SpinLockGuard<'a, T>
+impl<'a, T: Send> Deref<T> for SpinlockGuard<'a, T>
 {
     fn deref<'a>(&'a self) -> &'a T { &*self.data }
 }
 
-impl<'a, T: Send> DerefMut<T> for SpinLockGuard<'a, T>
+impl<'a, T: Send> DerefMut<T> for SpinlockGuard<'a, T>
 {
     fn deref_mut<'a>(&'a mut self) -> &'a mut T { &mut *self.data }
 }
 
 #[unsafe_destructor]
-impl<'a, T: Send> Drop for SpinLockGuard<'a, T>
+impl<'a, T: Send> Drop for SpinlockGuard<'a, T>
 {
     fn drop(&mut self)
     {
