@@ -1,6 +1,6 @@
 [package]
 
-name = "spinlock-rs"
+name = "spinlock"
 version = "0.1.0"
 authors = [ "mvdnes" ]
 
