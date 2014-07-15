@@ -31,7 +31,7 @@ impl<T: Send> Spinlock<T>
 
     fn _lock(&self)
     {
-        while self.lock.swap(true, SeqCst) == true
+        while self.lock.compare_and_swap(false, true, SeqCst) != false
         {
             if Local::exists(None::<Task>)
             {
