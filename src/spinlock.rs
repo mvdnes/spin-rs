@@ -40,7 +40,7 @@ impl<T: Send> Spinlock<T>
         }
     }
 
-    pub fn lock<'a>(&'a self) -> SpinlockGuard<'a, T>
+    pub fn lock(&self) -> SpinlockGuard<T>
     {
         self._lock();
         SpinlockGuard
