@@ -1,6 +1,8 @@
 spinlock-rs
 ===========
 
+[![Build Status](https://travis-ci.org/mvdnes/spinlock-rs.svg)](https://travis-ci.org/mvdnes/spinlock-rs)
+
 This Rust library implements a simple [spinlock](https://en.wikipedia.org/wiki/Spinlock).
 
 Build
