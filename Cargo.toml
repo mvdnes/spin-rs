@@ -2,8 +2,4 @@
 
 name = "spinlock"
 version = "0.1.0"
-authors = [ "mvdnes" ]
-
-[lib]
-
-name = "spinlock"
+authors = [ "mvdnes <git@mathijs.vd-nes.nl>" ]
