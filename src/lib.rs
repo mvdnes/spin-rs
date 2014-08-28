@@ -108,14 +108,37 @@ impl<T: Send> Spinlock<T>
         }
     }
 
-    fn _lock(&self)
+    #[inline(always)]
+    fn lock_check(&self) -> bool
     {
-        while self.lock.compare_and_swap(false, true, SeqCst) != false
+        self.lock.compare_and_swap(false, true, SeqCst) != false
+    }
+
+    fn obtain_lock(&self)
+    {
+        if Local::exists(None::<Task>)
         {
-            if Local::exists(None::<Task>)
-            {
-                std::task::deschedule();
-            }
+            self.obtain_lock_with_runtime();
+        }
+        else
+        {
+            self.obtain_lock_without_runtime();
+        }
+    }
+
+    fn obtain_lock_with_runtime(&self)
+    {
+        while self.lock_check()
+        {
+            std::task::deschedule();
+        }
+    }
+
+    fn obtain_lock_without_runtime(&self)
+    {
+        while self.lock_check()
+        {
+            // Do nothing
         }
     }
 
@@ -135,7 +158,7 @@ impl<T: Send> Spinlock<T>
     /// ```
     pub fn lock(&self) -> SpinlockGuard<T>
     {
-        self._lock();
+        self.obtain_lock();
         SpinlockGuard
         {
             lock: &self.lock,
