@@ -89,7 +89,7 @@ pub struct Spinlock<T>
 ///
 /// When the guard falls out of scope it will release the lock.
 #[experimental]
-pub struct SpinlockGuard<'a, T>
+pub struct SpinlockGuard<'a, T:'a>
 {
     lock: &'a AtomicBool,
     data: &'a mut T,
