@@ -7,7 +7,7 @@ notifications:
 
 env:
     global:
-        - secure: O43oHAe7qjI2LpUmWZYaTEeFBSn4UOgr5nLJ/iZzKEjsLVUipYuza2fugd5BogotqjFKGbah+7DQN1i86tLV53VbQiYkk55AfVO5CYL/dd5Wan2ihQOQIEwaLIk80gJ8ocls+XpsiTy+xauXpTr+pziECAgLUxV+W6WqLugEwXw=
+        - secure: kU2PHgkMed4zn1YskwzKj5M/bRGz5VOkePZMwv5cmJ8wjgm+/U6lggvCIcpSJOAEF0QzZ9wFfKjhPYwI8lNKRMC0KU6mbYBh/HOiGC4Ym1HZa9mV//rXfn28DFywc5MW3qvWBRcAfl9U8hYcgsNMz3YIeKUFm3Ju7tqYrs3f38U=
 
 script:
     - cargo build
