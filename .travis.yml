@@ -1,18 +1,18 @@
 language: rust
 
 notifications:
-    email:
-        on_success: never
-        on_failure: always
+  email:
+    on_success: never
+    on_failure: always
 
 env:
-    global:
-        - secure: kU2PHgkMed4zn1YskwzKj5M/bRGz5VOkePZMwv5cmJ8wjgm+/U6lggvCIcpSJOAEF0QzZ9wFfKjhPYwI8lNKRMC0KU6mbYBh/HOiGC4Ym1HZa9mV//rXfn28DFywc5MW3qvWBRcAfl9U8hYcgsNMz3YIeKUFm3Ju7tqYrs3f38U=
+  global:
+    secure: GjE/J8MBUhiL3cRHDgYl11kKL3fqN7sJpP/UTPm3TcW9JN7B9uU9rs7XUcnLh4MTcTN2RpRk8ktpYFI4X6NzhWcF4cCdQSYGIebguz7X71ErYgYR+tI8wryOCKlAb6irqAse0vPQHurdu9W0MLUIq+WyJduK57z3pRnoQKwyg6A=
 
 script:
-    - cargo build
-    - cargo test
-    - cargo doc
+- cargo build
+- cargo test
+- cargo doc
 
-after_script:
-    - cd target && curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh
+after_success:
+- .travis/publish_doc.sh
