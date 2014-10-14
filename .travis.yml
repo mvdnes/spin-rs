@@ -12,7 +12,8 @@ env:
 script:
 - cargo build
 - cargo test
-- cargo doc
+- cargo doc --no-deps
+- rustdoc --test README.md -L target
 
 after_success:
 - .travis/publish_doc.sh
