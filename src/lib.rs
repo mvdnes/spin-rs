@@ -74,8 +74,8 @@
 //! assert_eq!(answer, numthreads);
 //! ```
 
-use std::sync::atomics::{AtomicBool, SeqCst};
-use std::ty::Unsafe;
+use std::sync::atomic::{AtomicBool, SeqCst};
+use std::cell::UnsafeCell;
 use std::rt::local::Local;
 use std::rt::task::Task;
 
@@ -83,7 +83,7 @@ use std::rt::task::Task;
 pub struct Spinlock<T>
 {
     lock: AtomicBool,
-    data: Unsafe<T>,
+    data: UnsafeCell<T>,
 }
 
 /// A guard to which the protected data can be accessed
@@ -105,7 +105,7 @@ impl<T: Send> Spinlock<T>
         Spinlock
         {
             lock: AtomicBool::new(false),
-            data: Unsafe::new(user_data),
+            data: UnsafeCell::new(user_data),
         }
     }
 
