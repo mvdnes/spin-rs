@@ -2,7 +2,7 @@
 #![experimental]
 #![crate_type = "lib"]
 #![feature(unsafe_destructor)]
-#![warn(missing_doc)]
+#![warn(missing_docs)]
 
 //! This crate provides a thread-safe data container.
 //!
