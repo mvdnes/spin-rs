@@ -74,10 +74,12 @@
 //! assert_eq!(answer, numthreads);
 //! ```
 
+extern crate rustrt;
+
 use std::sync::atomic::{AtomicBool, SeqCst};
 use std::cell::UnsafeCell;
-use std::rt::local::Local;
-use std::rt::task::Task;
+use rustrt::local::Local;
+use rustrt::task::Task;
 
 /// A wrapper for the data giving access in a thread-safe manner
 pub struct Spinlock<T>
