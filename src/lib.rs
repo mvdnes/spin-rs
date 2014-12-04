@@ -4,6 +4,8 @@
 #![feature(unsafe_destructor)]
 #![warn(missing_docs)]
 
+#![no_std]
+
 //! This crate provides a thread-safe data container.
 //!
 //! # Description
@@ -74,12 +76,12 @@
 //! assert_eq!(answer, numthreads);
 //! ```
 
-extern crate rustrt;
+extern crate core;
 
-use std::sync::atomic::{AtomicBool, SeqCst};
-use std::cell::UnsafeCell;
-use rustrt::local::Local;
-use rustrt::task::Task;
+use core::kinds::Send;
+use core::ops::{Drop, Deref, DerefMut};
+use core::atomic::{AtomicBool, SeqCst};
+use core::cell::UnsafeCell;
 
 /// A wrapper for the data giving access in a thread-safe manner
 pub struct Spinlock<T>
@@ -118,26 +120,6 @@ impl<T: Send> Spinlock<T>
     }
 
     fn obtain_lock(&self)
-    {
-        if Local::exists(None::<Task>)
-        {
-            self.obtain_lock_with_runtime();
-        }
-        else
-        {
-            self.obtain_lock_without_runtime();
-        }
-    }
-
-    fn obtain_lock_with_runtime(&self)
-    {
-        while self.lock_check()
-        {
-            std::task::deschedule();
-        }
-    }
-
-    fn obtain_lock_without_runtime(&self)
     {
         while self.lock_check()
         {
