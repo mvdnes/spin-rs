@@ -57,7 +57,7 @@
 //! {
 //!     let my_barrier = barrier.clone();
 //!     let my_lock = spinlock.clone();
-//!     spawn(proc()
+//!     spawn(move||
 //!     {
 //!         let mut guard = my_lock.lock();
 //!         *guard += 1;
