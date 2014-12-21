@@ -76,6 +76,7 @@
 //! assert_eq!(answer, numthreads);
 //! ```
 
+#[cfg(test)] extern crate std;
 extern crate core;
 
 use core::atomic::{AtomicBool, SeqCst};
