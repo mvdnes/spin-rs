@@ -59,7 +59,7 @@
 //! {
 //!     let my_barrier = barrier.clone();
 //!     let my_lock = spinlock.clone();
-//!     spawn(move||
+//!     std::thread::Thread::spawn(move||
 //!     {
 //!         let mut guard = my_lock.lock();
 //!         *guard += 1;
@@ -67,7 +67,7 @@
 //!         // Release the lock to prevent a deadlock
 //!         drop(guard);
 //!         my_barrier.wait();
-//!     });
+//!     }).detach();
 //! }
 //!
 //! barrier.wait();
@@ -78,10 +78,10 @@
 
 extern crate core;
 
-use core::kinds::Send;
-use core::ops::{Drop, Deref, DerefMut};
 use core::atomic::{AtomicBool, SeqCst};
 use core::cell::UnsafeCell;
+use core::kinds::Send;
+use core::ops::{Drop, Deref, DerefMut};
 
 /// A wrapper for the data giving access in a thread-safe manner
 pub struct Spinlock<T>
@@ -113,15 +113,9 @@ impl<T: Send> Spinlock<T>
         }
     }
 
-    #[inline(always)]
-    fn lock_check(&self) -> bool
-    {
-        self.lock.compare_and_swap(false, true, SeqCst) != false
-    }
-
     fn obtain_lock(&self)
     {
-        while self.lock_check()
+        while self.lock.compare_and_swap(false, true, SeqCst) != false
         {
             // Do nothing
         }
