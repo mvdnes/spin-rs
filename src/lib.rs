@@ -74,12 +74,8 @@
 //! assert_eq!(answer, numthreads);
 //! ```
 
-extern crate rustrt;
-
 use std::sync::atomic::{AtomicBool, SeqCst};
 use std::cell::UnsafeCell;
-use rustrt::local::Local;
-use rustrt::task::Task;
 
 /// A wrapper for the data giving access in a thread-safe manner
 pub struct Spinlock<T>
@@ -111,35 +107,9 @@ impl<T: Send> Spinlock<T>
         }
     }
 
-    #[inline(always)]
-    fn lock_check(&self) -> bool
-    {
-        self.lock.compare_and_swap(false, true, SeqCst) != false
-    }
-
     fn obtain_lock(&self)
     {
-        if Local::exists(None::<Task>)
-        {
-            self.obtain_lock_with_runtime();
-        }
-        else
-        {
-            self.obtain_lock_without_runtime();
-        }
-    }
-
-    fn obtain_lock_with_runtime(&self)
-    {
-        while self.lock_check()
-        {
-            std::task::deschedule();
-        }
-    }
-
-    fn obtain_lock_without_runtime(&self)
-    {
-        while self.lock_check()
+        while self.lock.compare_and_swap(false, true, SeqCst) != false
         {
             // Do nothing
         }
