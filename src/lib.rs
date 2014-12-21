@@ -172,12 +172,12 @@ impl<T: Send> Spinlock<T>
 
 impl<'a, T: Send> Deref<T> for SpinlockGuard<'a, T>
 {
-    fn deref<'a>(&'a self) -> &'a T { &*self.data }
+    fn deref<'b>(&'b self) -> &'b T { &*self.data }
 }
 
 impl<'a, T: Send> DerefMut<T> for SpinlockGuard<'a, T>
 {
-    fn deref_mut<'a>(&'a mut self) -> &'a mut T { &mut *self.data }
+    fn deref_mut<'b>(&'b mut self) -> &'b mut T { &mut *self.data }
 }
 
 #[unsafe_destructor]
