@@ -81,7 +81,7 @@ extern crate core;
 
 use core::atomic::{AtomicBool, SeqCst};
 use core::cell::UnsafeCell;
-use core::kinds::Send;
+use core::kinds::Sync;
 use core::ops::{Drop, Deref, DerefMut};
 
 /// A wrapper for the data giving access in a thread-safe manner
@@ -101,7 +101,9 @@ pub struct SpinlockGuard<'a, T:'a>
     data: &'a mut T,
 }
 
-impl<T: Send> Spinlock<T>
+unsafe impl<T> Sync for Spinlock<T> {}
+
+impl<T> Spinlock<T>
 {
     /// Creates a new spinlock wrapping the supplied data.
     #[unstable]
@@ -147,18 +149,18 @@ impl<T: Send> Spinlock<T>
     }
 }
 
-impl<'a, T: Send> Deref<T> for SpinlockGuard<'a, T>
+impl<'a, T> Deref<T> for SpinlockGuard<'a, T>
 {
     fn deref<'b>(&'b self) -> &'b T { &*self.data }
 }
 
-impl<'a, T: Send> DerefMut<T> for SpinlockGuard<'a, T>
+impl<'a, T> DerefMut<T> for SpinlockGuard<'a, T>
 {
     fn deref_mut<'b>(&'b mut self) -> &'b mut T { &mut *self.data }
 }
 
 #[unsafe_destructor]
-impl<'a, T: Send> Drop for SpinlockGuard<'a, T>
+impl<'a, T> Drop for SpinlockGuard<'a, T>
 {
     /// The dropping of the SpinlockGuard will release the lock it was created from.
     fn drop(&mut self)
