@@ -79,7 +79,7 @@
 #[cfg(test)] extern crate std;
 extern crate core;
 
-use core::atomic::{AtomicBool, SeqCst, INIT_ATOMIC_BOOL};
+use core::atomic::{AtomicBool, Ordering, INIT_ATOMIC_BOOL};
 use core::cell::UnsafeCell;
 use core::kinds::Sync;
 use core::ops::{Drop, Deref, DerefMut};
@@ -139,7 +139,7 @@ impl<T> Spinlock<T>
 
     fn obtain_lock(&self)
     {
-        while self.lock.compare_and_swap(false, true, SeqCst) != false
+        while self.lock.compare_and_swap(false, true, Ordering::SeqCst) != false
         {
             // Do nothing
         }
@@ -186,6 +186,6 @@ impl<'a, T> Drop for SpinlockGuard<'a, T>
     /// The dropping of the SpinlockGuard will release the lock it was created from.
     fn drop(&mut self)
     {
-        self.lock.store(false, SeqCst);
+        self.lock.store(false, Ordering::SeqCst);
     }
 }
