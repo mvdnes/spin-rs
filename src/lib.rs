@@ -79,7 +79,7 @@
 #[cfg(test)] extern crate std;
 extern crate core;
 
-use core::atomic::{AtomicBool, SeqCst};
+use core::atomic::{AtomicBool, SeqCst, INIT_ATOMIC_BOOL};
 use core::cell::UnsafeCell;
 use core::kinds::Sync;
 use core::ops::{Drop, Deref, DerefMut};
@@ -103,6 +103,27 @@ pub struct SpinlockGuard<'a, T:'a>
 
 unsafe impl<T> Sync for Spinlock<T> {}
 
+/// A Spinlock which may be used statically.
+///
+/// ```
+/// use spinlock::{StaticSpinlock, INIT_STATIC_SPINLOCK};
+///
+/// static SPLCK: StaticSpinlock = INIT_STATIC_SPINLOCK;
+///
+/// fn demo() {
+///     let lock = SPLCK.lock();
+///     // do something with lock
+///     drop(lock);
+/// }
+/// ```
+pub type StaticSpinlock = Spinlock<()>;
+
+/// A initializer for StaticSpinlock, containing no data.
+pub const INIT_STATIC_SPINLOCK: StaticSpinlock = Spinlock {
+    lock: INIT_ATOMIC_BOOL,
+    data: UnsafeCell { value: () },
+};
+
 impl<T> Spinlock<T>
 {
     /// Creates a new spinlock wrapping the supplied data.
@@ -111,7 +132,7 @@ impl<T> Spinlock<T>
     {
         Spinlock
         {
-            lock: AtomicBool::new(false),
+            lock: INIT_ATOMIC_BOOL,
             data: UnsafeCell::new(user_data),
         }
     }
