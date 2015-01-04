@@ -2,6 +2,7 @@
 #![experimental]
 #![crate_type = "lib"]
 #![feature(unsafe_destructor)]
+#![feature(associated_types)]
 #![warn(missing_docs)]
 
 #![no_std]
@@ -170,12 +171,13 @@ impl<T> Spinlock<T>
     }
 }
 
-impl<'a, T> Deref<T> for SpinlockGuard<'a, T>
+impl<'a, T> Deref for SpinlockGuard<'a, T>
 {
+    type Target = T;
     fn deref<'b>(&'b self) -> &'b T { &*self.data }
 }
 
-impl<'a, T> DerefMut<T> for SpinlockGuard<'a, T>
+impl<'a, T> DerefMut for SpinlockGuard<'a, T>
 {
     fn deref_mut<'b>(&'b mut self) -> &'b mut T { &mut *self.data }
 }
