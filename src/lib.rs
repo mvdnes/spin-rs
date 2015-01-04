@@ -107,9 +107,9 @@ unsafe impl<T> Sync for Spinlock<T> {}
 /// A Spinlock which may be used statically.
 ///
 /// ```
-/// use spinlock::{StaticSpinlock, INIT_STATIC_SPINLOCK};
+/// use spinlock::{StaticSpinlock, STATIC_SPINLOCK_INIT};
 ///
-/// static SPLCK: StaticSpinlock = INIT_STATIC_SPINLOCK;
+/// static SPLCK: StaticSpinlock = STATIC_SPINLOCK_INIT;
 ///
 /// fn demo() {
 ///     let lock = SPLCK.lock();
@@ -120,10 +120,13 @@ unsafe impl<T> Sync for Spinlock<T> {}
 pub type StaticSpinlock = Spinlock<()>;
 
 /// A initializer for StaticSpinlock, containing no data.
-pub const INIT_STATIC_SPINLOCK: StaticSpinlock = Spinlock {
+pub const STATIC_SPINLOCK_INIT: StaticSpinlock = Spinlock {
     lock: ATOMIC_BOOL_INIT,
     data: UnsafeCell { value: () },
 };
+
+#[deprecated = "renamed to STATIC_SPINLOCK_INIT"]
+pub const INIT_STATIC_SPINLOCK: StaticSpinlock = STATIC_SPINLOCK_INIT;
 
 impl<T> Spinlock<T>
 {
