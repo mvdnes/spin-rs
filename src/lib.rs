@@ -80,7 +80,7 @@
 #[cfg(test)] extern crate std;
 extern crate core;
 
-use core::atomic::{AtomicBool, Ordering, INIT_ATOMIC_BOOL};
+use core::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
 use core::cell::UnsafeCell;
 use core::kinds::Sync;
 use core::ops::{Drop, Deref, DerefMut};
@@ -121,7 +121,7 @@ pub type StaticSpinlock = Spinlock<()>;
 
 /// A initializer for StaticSpinlock, containing no data.
 pub const INIT_STATIC_SPINLOCK: StaticSpinlock = Spinlock {
-    lock: INIT_ATOMIC_BOOL,
+    lock: ATOMIC_BOOL_INIT,
     data: UnsafeCell { value: () },
 };
 
@@ -133,7 +133,7 @@ impl<T> Spinlock<T>
     {
         Spinlock
         {
-            lock: INIT_ATOMIC_BOOL,
+            lock: ATOMIC_BOOL_INIT,
             data: UnsafeCell::new(user_data),
         }
     }
