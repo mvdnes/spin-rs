@@ -2,7 +2,6 @@
 #![experimental]
 #![crate_type = "lib"]
 #![feature(unsafe_destructor)]
-#![feature(associated_types)]
 #![warn(missing_docs)]
 
 #![no_std]
