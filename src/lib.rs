@@ -44,7 +44,7 @@
 //!
 //! # Thread-safety example
 //!
-//! ```compile_fail
+//! ```
 //! use spinlock::Spinlock;
 //! use std::sync::{Arc, Barrier};
 //!
