@@ -25,7 +25,7 @@
 //!
 //! ```
 //! use spinlock::Spinlock;
-//! let spinlock = Spinlock::new(0u);
+//! let spinlock = Spinlock::new(0);
 //!
 //! // Modify the data
 //! {
@@ -40,7 +40,7 @@
 //!     *data
 //! };
 //!
-//! assert_eq!(answer, 2u);
+//! assert_eq!(answer, 2);
 //! ```
 //!
 //! # Thread-safety example
@@ -50,7 +50,7 @@
 //! use std::sync::{Arc, Barrier};
 //!
 //! let numthreads = 1000;
-//! let spinlock = Arc::new(Spinlock::new(0u));
+//! let spinlock = Arc::new(Spinlock::new(0));
 //!
 //! // We use a barrier to ensure the readout happens after all writing
 //! let barrier = Arc::new(Barrier::new(numthreads + 1));
