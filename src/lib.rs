@@ -81,7 +81,7 @@ extern crate core;
 
 use core::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
 use core::cell::UnsafeCell;
-use core::kinds::Sync;
+use core::marker::Sync;
 use core::ops::{Drop, Deref, DerefMut};
 
 /// A wrapper for the data giving access in a thread-safe manner
