@@ -1,8 +1,7 @@
-#![crate_name = "spinlock"]
-#![experimental]
 #![crate_type = "lib"]
 #![feature(unsafe_destructor)]
 #![warn(missing_docs)]
+#![allow(unstable)]
 
 #![no_std]
 
@@ -94,7 +93,6 @@ pub struct Spinlock<T>
 /// A guard to which the protected data can be accessed
 ///
 /// When the guard falls out of scope it will release the lock.
-#[experimental]
 pub struct SpinlockGuard<'a, T:'a>
 {
     lock: &'a AtomicBool,
@@ -130,7 +128,6 @@ pub const INIT_STATIC_SPINLOCK: StaticSpinlock = STATIC_SPINLOCK_INIT;
 impl<T> Spinlock<T>
 {
     /// Creates a new spinlock wrapping the supplied data.
-    #[unstable]
     pub fn new(user_data: T) -> Spinlock<T>
     {
         Spinlock
