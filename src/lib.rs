@@ -55,7 +55,7 @@
 //! // We use a barrier to ensure the readout happens after all writing
 //! let barrier = Arc::new(Barrier::new(numthreads + 1));
 //!
-//! for _ in range(0, numthreads)
+//! for _ in (0..numthreads)
 //! {
 //!     let my_barrier = barrier.clone();
 //!     let my_lock = spinlock.clone();
@@ -67,7 +67,7 @@
 //!         // Release the lock to prevent a deadlock
 //!         drop(guard);
 //!         my_barrier.wait();
-//!     }).detach();
+//!     });
 //! }
 //!
 //! barrier.wait();
