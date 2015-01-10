@@ -1,7 +1,6 @@
 #![crate_type = "lib"]
 #![feature(unsafe_destructor)]
 #![warn(missing_docs)]
-#![allow(unstable)]
 
 #![no_std]
 
@@ -75,7 +74,10 @@
 //! assert_eq!(answer, numthreads);
 //! ```
 
-#[cfg(test)] extern crate std;
+#[cfg(test)]
+extern crate std;
+
+#[allow(unstable)]
 extern crate core;
 
 use core::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
@@ -99,6 +101,7 @@ pub struct SpinlockGuard<'a, T:'a>
     data: &'a mut T,
 }
 
+#[allow(unstable)]
 unsafe impl<T> Sync for Spinlock<T> {}
 
 /// A Spinlock which may be used statically.
@@ -151,7 +154,7 @@ impl<T> Spinlock<T>
     /// and the lock will be dropped when the guard falls out of scope.
     ///
     /// ```
-    /// let mylock = spinlock::Spinlock::new(0u);
+    /// let mylock = spinlock::Spinlock::new(0);
     /// {
     ///     let mut data = mylock.lock();
     ///     // The lock is now locked and the data can be accessed
