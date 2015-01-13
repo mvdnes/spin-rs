@@ -2,4 +2,14 @@
 
 name = "spinlock"
 version = "0.1.0"
-authors = [ "mvdnes <git@mathijs.vd-nes.nl>" ]
+authors = [ "Mathijs van de Nes <git@mathijs.vd-nes.nl>" ]
+license = "MIT"
+repository = "https://github.com/mvdnes/spinlock-rs.git"
+documentation = "https://mvdnes.github.io/zip-rs/zip/index.html"
+description = """
+A simple spinlock.
+
+* may contain data
+* usable without std
+* static initializer available
+"""
