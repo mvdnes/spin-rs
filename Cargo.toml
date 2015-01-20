@@ -1,14 +1,15 @@
 [package]
 
-name = "spinlock"
+name = "spin"
 version = "0.1.1"
-authors = [ "Mathijs van de Nes <git@mathijs.vd-nes.nl>" ]
+authors = [ "Mathijs van de Nes <git@mathijs.vd-nes.nl>",
+            "John Ericson <John_Ericson@Yahoo.com>" ]
 license = "MIT"
 repository = "https://github.com/mvdnes/spinlock-rs.git"
 documentation = "https://mvdnes.github.io/spinlock-rs/"
 description = """
-A simple spinlock.
-It may contain data,
-is usable without std
-and there is a static initializer available.
+Synchronization primitives based on spinning.
+They may contain data,
+They are usable without `std`
+and static initializers are available.
 """
