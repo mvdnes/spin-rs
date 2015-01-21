@@ -100,12 +100,29 @@ impl<T> RwLock<T>
     #[inline]
     pub fn read<'a>(&'a self) -> RwLockReadGuard<'a, T>
     {
-        loop
-        {
-            match self.try_read() {
-                None        => (),
-                Some(guard) => return guard,
-            }
+        // (funny do-while loop)
+        while {
+            // Old value, with write bit unset
+            let mut old;
+
+            // Wait for for writer to go away before doing expensive atomic ops
+            // (funny do-while loop)
+            while {
+                old = self.lock.load(Ordering::Relaxed);
+                old & USIZE_MSB != 0
+            } {}
+
+            // unset write bit
+            old &= !USIZE_MSB;
+
+            let new = old + 1;
+            debug_assert!(new != (!USIZE_MSB) & (-1));
+
+            self.lock.compare_and_swap(old, new, Ordering::SeqCst) != old
+        } {}
+        RwLockReadGuard {
+            lock: &self.lock,
+            data: unsafe { & *self.data.get() },
         }
     }
 
@@ -118,9 +135,11 @@ impl<T> RwLock<T>
     /// guarantees with respect to the ordering of whether contentious readers
     /// or writers will acquire the lock first.
     #[inline]
-    pub fn try_read(&self) -> Option<RwLockReadGuard<T>> {
+    pub fn try_read(&self) -> Option<RwLockReadGuard<T>>
+    {
         // Old value, with write bit unset
         let old = (!USIZE_MSB) & self.lock.load(Ordering::Relaxed);
+
         let new = old + 1;
         debug_assert!(new != (!USIZE_MSB) & (-1));
         if self.lock.compare_and_swap(old,
@@ -174,14 +193,11 @@ impl<T> RwLock<T>
     /// to `write` would otherwise block. If successful, an RAII guard is
     /// returned.
     #[inline]
-    pub fn try_write(&self) -> Option<RwLockWriteGuard<T>> {
-        // No readers or writers.
-        let old = 0;
-        // Old value, with write bit set.
-        let new = USIZE_MSB | old;
-        if self.lock.compare_and_swap(old,
-                                      new,
-                                      Ordering::SeqCst) == old
+    pub fn try_write(&self) -> Option<RwLockWriteGuard<T>>
+    {
+        if self.lock.compare_and_swap(0,
+                                      USIZE_MSB,
+                                      Ordering::SeqCst) == 0
         {
             Some(RwLockWriteGuard {
                 lock: &self.lock,
@@ -212,6 +228,7 @@ impl<'rwlock, T> DerefMut for RwLockWriteGuard<'rwlock, T> {
 #[unsafe_destructor]
 impl<'rwlock, T> Drop for RwLockReadGuard<'rwlock, T> {
     fn drop(&mut self) {
+        debug_assert!(self.lock.load(Ordering::Relaxed) & (!USIZE_MSB) > 0);
         self.lock.fetch_sub(1, Ordering::SeqCst);
     }
 }
