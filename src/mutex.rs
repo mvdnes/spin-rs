@@ -110,9 +110,6 @@ pub const STATIC_MUTEX_INIT: StaticMutex = Mutex {
     data: UnsafeCell { value: () },
 };
 
-#[deprecated = "renamed to STATIC_MUTEX_INIT"]
-pub const INIT_STATIC_SPINLOCK: StaticMutex = STATIC_MUTEX_INIT;
-
 impl<T> Mutex<T>
 {
     /// Creates a new spinlock wrapping the supplied data.
