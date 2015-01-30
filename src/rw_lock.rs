@@ -1,5 +1,3 @@
-#![allow(unstable)]
-
 use core::prelude::*;
 
 use core::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
@@ -18,6 +16,10 @@ use core::ops::{Deref, DerefMut};
 /// allow concurrent access through readers. The RAII guards returned from the
 /// locking methods implement `Deref` (and `DerefMut` for the `write` methods)
 /// to allow access to the contained of the lock.
+///
+/// Based on
+/// https://jfdube.wordpress.com/2014/01/03/implementing-a-recursive-read-write-spinlock/
+///
 pub struct RwLock<T>
 {
     lock: AtomicUsize,
@@ -28,10 +30,6 @@ pub struct RwLock<T>
 ///
 /// When the guard falls out of scope it will decrement the read count,
 /// potentially releasing the lock.
-///
-/// Based on
-/// https://jfdube.wordpress.com/2014/01/03/implementing-a-recursive-read-write-spinlock/
-///
 pub struct RwLockReadGuard<'a, T:'a>
 {
     lock: &'a AtomicUsize,
@@ -97,6 +95,16 @@ impl<T> RwLock<T>
     ///
     /// Returns an RAII guard which will release this thread's shared access
     /// once it is dropped.
+    ///
+    /// ```
+    /// let mylock = spin::RwLock::new(0us);
+    /// {
+    ///     let mut data = mylock.read();
+    ///     // The lock is now locked and the data can be read
+    ///     println!("{}", *data);
+    ///     // The lock is dropped
+    /// }
+    /// ```
     #[inline]
     pub fn read<'a>(&'a self) -> RwLockReadGuard<'a, T>
     {
@@ -134,6 +142,20 @@ impl<T> RwLock<T>
     /// access could not be granted. This method does not provide any
     /// guarantees with respect to the ordering of whether contentious readers
     /// or writers will acquire the lock first.
+    ///
+    /// ```
+    /// let mylock = spin::RwLock::new(0us);
+    /// {
+    ///     match mylock.try_read() {
+    ///         Some(data) => {
+    ///             // The lock is now locked and the data can be read
+    ///             println!("{}", *data);
+    ///             // The lock is dropped
+    ///         },
+    ///         None => (), // no cigar
+    ///     }
+    /// }
+    /// ```
     #[inline]
     pub fn try_read(&self) -> Option<RwLockReadGuard<T>>
     {
@@ -163,6 +185,16 @@ impl<T> RwLock<T>
     ///
     /// Returns an RAII guard which will drop the write access of this rwlock
     /// when dropped.
+    ///
+    /// ```
+    /// let mylock = spin::RwLock::new(0us);
+    /// {
+    ///     let mut data = mylock.write();
+    ///     // The lock is now locked and the data can be written
+    ///     *data += 1;
+    ///     // The lock is dropped
+    /// }
+    /// ```
     #[inline]
     pub fn write<'a>(&'a self) -> RwLockWriteGuard<'a, T>
     {
@@ -192,6 +224,20 @@ impl<T> RwLock<T>
     /// This function does not ever block, and it will return `None` if a call
     /// to `write` would otherwise block. If successful, an RAII guard is
     /// returned.
+    ///
+    /// ```
+    /// let mylock = spin::RwLock::new(0us);
+    /// {
+    ///     match mylock.try_write() {
+    ///         Some(mut data) => {
+    ///             // The lock is now locked and the data can be written
+    ///             *data += 1;
+    ///             // The lock is implicitly dropped
+    ///         },
+    ///         None => (), // no cigar
+    ///     }
+    /// }
+    /// ```
     #[inline]
     pub fn try_write(&self) -> Option<RwLockWriteGuard<T>>
     {

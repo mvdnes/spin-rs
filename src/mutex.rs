@@ -21,8 +21,8 @@ use core::ops::{Drop, Deref, DerefMut};
 /// # Simple example
 ///
 /// ```
-/// use spin::Mutex;
-/// let spin_mutex = Mutex::new(0);
+/// use spin;
+/// let spin_mutex = spin::Mutex::new(0);
 ///
 /// // Modify the data
 /// {
@@ -43,11 +43,11 @@ use core::ops::{Drop, Deref, DerefMut};
 /// # Thread-safety example
 ///
 /// ```
-/// use spin::Mutex;
+/// use spin;
 /// use std::sync::{Arc, Barrier};
 ///
 /// let numthreads = 1000;
-/// let spin_mutex = Arc::new(Mutex::new(0));
+/// let spin_mutex = Arc::new(spin::Mutex::new(0));
 ///
 /// // We use a barrier to ensure the readout happens after all writing
 /// let barrier = Arc::new(Barrier::new(numthreads + 1));
@@ -87,15 +87,14 @@ pub struct MutexGuard<'a, T:'a>
     data: &'a mut T,
 }
 
-#[allow(unstable)]
 unsafe impl<T> Sync for Mutex<T> {}
 
 /// A Mutex which may be used statically.
 ///
 /// ```
-/// use spin::{StaticMutex, STATIC_MUTEX_INIT};
+/// use spin::{self, STATIC_MUTEX_INIT};
 ///
-/// static SPLCK: StaticMutex = STATIC_MUTEX_INIT;
+/// static SPLCK: spin::StaticMutex = STATIC_MUTEX_INIT;
 ///
 /// fn demo() {
 ///     let lock = SPLCK.lock();
@@ -145,8 +144,9 @@ impl<T> Mutex<T>
     ///     let mut data = mylock.lock();
     ///     // The lock is now locked and the data can be accessed
     ///     *data += 1;
+    ///     // The lock is implicitly dropped
     /// }
-    /// // The lock is dropped
+    ///
     /// ```
     pub fn lock(&self) -> MutexGuard<T>
     {
