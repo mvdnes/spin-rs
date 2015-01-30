@@ -1,4 +1,5 @@
 #![crate_type = "lib"]
+#![feature(core)]
 #![feature(unsafe_destructor)]
 #![warn(missing_docs)]
 
@@ -9,7 +10,7 @@
 #[cfg(test)]
 extern crate std;
 
-#[macro_use] #[allow(unstable)]
+#[macro_use]
 extern crate core;
 
 pub use mutex::*;
