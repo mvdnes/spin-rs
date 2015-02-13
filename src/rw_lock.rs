@@ -153,7 +153,7 @@ impl<T> RwLock<T>
     ///             // The lock is dropped
     ///         },
     ///         None => (), // no cigar
-    ///     }
+    ///     };
     /// }
     /// ```
     #[inline]
@@ -235,7 +235,7 @@ impl<T> RwLock<T>
     ///             // The lock is implicitly dropped
     ///         },
     ///         None => (), // no cigar
-    ///     }
+    ///     };
     /// }
     /// ```
     #[inline]
