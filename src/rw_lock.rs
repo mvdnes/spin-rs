@@ -146,11 +146,14 @@ impl<T> RwLock<T>
     /// ```
     /// let mylock = spin::RwLock::new(0us);
     /// {
-    ///     if let Some(data) = mylock.try_read() {
-    ///         // The lock is now locked and the data can be read
-    ///         println!("{}", *data);
-    ///         // The lock is dropped
-    ///     };
+    ///     match mylock.try_read() {
+    ///         Some(data) => {
+    ///             // The lock is now locked and the data can be read
+    ///             println!("{}", *data);
+    ///             // The lock is dropped
+    ///         },
+    ///         None => (), // no cigar
+    ///     }
     /// }
     /// ```
     #[inline]
@@ -225,11 +228,14 @@ impl<T> RwLock<T>
     /// ```
     /// let mylock = spin::RwLock::new(0us);
     /// {
-    ///     if let Some(mut data) = mylock.try_write() {
-    ///         // The lock is now locked and the data can be written
-    ///         *data += 1;
-    ///         // The lock is implicitly dropped
-    ///     };
+    ///     match mylock.try_write() {
+    ///         Some(mut data) => {
+    ///             // The lock is now locked and the data can be written
+    ///             *data += 1;
+    ///             // The lock is implicitly dropped
+    ///         },
+    ///         None => (), // no cigar
+    ///     }
     /// }
     /// ```
     #[inline]
