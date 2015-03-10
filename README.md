@@ -24,8 +24,8 @@ extern crate spin;
 
 fn main()
 {
-    let mutex   = spin::Mutex::new(0us);
-    let rw_lock = spin::RwLock::new(0us);
+    let mutex   = spin::Mutex::new(0);
+    let rw_lock = spin::RwLock::new(0);
 
     // Modify the data
     {
