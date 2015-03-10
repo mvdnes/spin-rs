@@ -18,8 +18,3 @@ pub use rw_lock::*;
 
 mod mutex;
 mod rw_lock;
-
-#[cfg(not(test))]
-mod std {
-    pub use core::*;
-}
