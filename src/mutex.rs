@@ -56,7 +56,7 @@ use core::ops::{Drop, Deref, DerefMut};
 /// {
 ///     let my_barrier = barrier.clone();
 ///     let my_lock = spin_mutex.clone();
-///     std::thread::Thread::spawn(move||
+///     std::thread::spawn(move||
 ///     {
 ///         let mut guard = my_lock.lock();
 ///         *guard += 1;
