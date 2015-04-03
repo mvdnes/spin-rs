@@ -167,7 +167,6 @@ impl<'a, T> DerefMut for MutexGuard<'a, T>
     fn deref_mut<'b>(&'b mut self) -> &'b mut T { &mut *self.data }
 }
 
-#[unsafe_destructor]
 impl<'a, T> Drop for MutexGuard<'a, T>
 {
     /// The dropping of the MutexGuard will release the lock it was created from.

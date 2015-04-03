@@ -1,6 +1,5 @@
 #![crate_type = "lib"]
-#![feature(core)]
-#![feature(no_std, unsafe_destructor)]
+#![feature(core, no_std)]
 #![warn(missing_docs)]
 
 //! Synchronization primitives based on spinning

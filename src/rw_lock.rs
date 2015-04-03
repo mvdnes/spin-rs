@@ -271,7 +271,6 @@ impl<'rwlock, T> DerefMut for RwLockWriteGuard<'rwlock, T> {
     fn deref_mut(&mut self) -> &mut T { self.data }
 }
 
-#[unsafe_destructor]
 impl<'rwlock, T> Drop for RwLockReadGuard<'rwlock, T> {
     fn drop(&mut self) {
         debug_assert!(self.lock.load(Ordering::Relaxed) & (!USIZE_MSB) > 0);
@@ -279,7 +278,6 @@ impl<'rwlock, T> Drop for RwLockReadGuard<'rwlock, T> {
     }
 }
 
-#[unsafe_destructor]
 impl<'rwlock, T> Drop for RwLockWriteGuard<'rwlock, T> {
     fn drop(&mut self) {
         debug_assert_eq!(self.lock.load(Ordering::Relaxed), USIZE_MSB);
