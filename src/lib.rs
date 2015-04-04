@@ -3,9 +3,7 @@
 
 //! Synchronization primitives based on spinning
 
-#![feature(core)]
-
-#![cfg_attr(not(feature = "std"), feature(no_std))]
+#![cfg_attr(not(feature = "std"), feature(no_std, core))]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(all(not(feature = "std"), test))]

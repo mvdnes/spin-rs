@@ -115,9 +115,11 @@ unsafe impl<T> Sync for Mutex<T> {}
 ///     drop(lock);
 /// }
 /// ```
+#[cfg(not(feature = "std"))]
 pub type StaticMutex = Mutex<()>;
 
 /// A initializer for StaticMutex, containing no data.
+#[cfg(not(feature = "std"))]
 pub const STATIC_MUTEX_INIT: StaticMutex = Mutex {
     lock: ATOMIC_BOOL_INIT,
     data: UnsafeCell { value: () },

@@ -72,9 +72,11 @@ unsafe impl<T:'static+Send> Send for RwLock<T> {}
 ///     drop(lock);
 /// }
 /// ```
+#[cfg(not(feature = "std"))]
 pub type StaticRwLock = RwLock<()>;
 
 /// A initializer for StaticRwLock, containing no data.
+#[cfg(not(feature = "std"))]
 pub const STATIC_RWLOCK_INIT: StaticRwLock = RwLock {
     lock: ATOMIC_USIZE_INIT,
     data: UnsafeCell { value: () },
