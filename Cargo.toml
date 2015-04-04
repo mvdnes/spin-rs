@@ -1,7 +1,7 @@
 [package]
 
 name = "spin"
-version = "0.1.3"
+version = "0.1.4"
 authors = [ "Mathijs van de Nes <git@mathijs.vd-nes.nl>",
             "John Ericson <John_Ericson@Yahoo.com>" ]
 license = "MIT"
@@ -13,3 +13,6 @@ They may contain data,
 They are usable without `std`
 and static initializers are available.
 """
+
+[features]
+std = []

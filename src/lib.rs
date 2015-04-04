@@ -1,14 +1,17 @@
 #![crate_type = "lib"]
-#![feature(core, no_std)]
 #![warn(missing_docs)]
 
 //! Synchronization primitives based on spinning
 
-#![no_std]
+#![feature(core)]
 
-#[cfg(test)]
+#![cfg_attr(not(feature = "std"), feature(no_std))]
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(all(not(feature = "std"), test))]
 extern crate std;
 
+#[cfg(not(feature = "std"))]
 #[macro_use]
 extern crate core;
 

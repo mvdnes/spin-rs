@@ -1,7 +1,18 @@
+#[cfg(feature = "std")]
+use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+#[cfg(feature = "std")]
+use std::cell::UnsafeCell;
+#[cfg(feature = "std")]
+use std::ops::{Deref, DerefMut};
+
+#[cfg(not(feature = "std"))]
 use core::prelude::*;
 
+#[cfg(not(feature = "std"))]
 use core::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+#[cfg(not(feature = "std"))]
 use core::cell::UnsafeCell;
+#[cfg(not(feature = "std"))]
 use core::ops::{Deref, DerefMut};
 
 /// A reader-writer lock
@@ -69,7 +80,10 @@ pub const STATIC_RWLOCK_INIT: StaticRwLock = RwLock {
     data: UnsafeCell { value: () },
 };
 
+#[cfg(not(feature = "std"))]
 const USIZE_MSB: usize = ::core::isize::MIN as usize;
+#[cfg(feature = "std")]
+const USIZE_MSB: usize = ::std::isize::MIN as usize;
 
 impl<T> RwLock<T>
 {

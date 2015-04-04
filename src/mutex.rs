@@ -1,6 +1,19 @@
+#[cfg(feature = "std")]
+use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
+#[cfg(feature = "std")]
+use std::cell::UnsafeCell;
+#[cfg(feature = "std")]
+use std::marker::Sync;
+#[cfg(feature = "std")]
+use std::ops::{Drop, Deref, DerefMut};
+
+#[cfg(not(feature = "std"))]
 use core::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
+#[cfg(not(feature = "std"))]
 use core::cell::UnsafeCell;
+#[cfg(not(feature = "std"))]
 use core::marker::Sync;
+#[cfg(not(feature = "std"))]
 use core::ops::{Drop, Deref, DerefMut};
 
 /// This type provides MUTual EXclusion based on spinning.
