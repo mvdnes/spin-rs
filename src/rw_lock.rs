@@ -1,18 +1,18 @@
-#[cfg(feature = "std")]
+#[cfg(not(feature = "no_std"))]
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
-#[cfg(feature = "std")]
+#[cfg(not(feature = "no_std"))]
 use std::cell::UnsafeCell;
-#[cfg(feature = "std")]
+#[cfg(not(feature = "no_std"))]
 use std::ops::{Deref, DerefMut};
 
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 use core::prelude::*;
 
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 use core::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 use core::cell::UnsafeCell;
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 use core::ops::{Deref, DerefMut};
 
 /// A reader-writer lock
@@ -72,19 +72,19 @@ unsafe impl<T:'static+Send> Send for RwLock<T> {}
 ///     drop(lock);
 /// }
 /// ```
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 pub type StaticRwLock = RwLock<()>;
 
 /// A initializer for StaticRwLock, containing no data.
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 pub const STATIC_RWLOCK_INIT: StaticRwLock = RwLock {
     lock: ATOMIC_USIZE_INIT,
     data: UnsafeCell { value: () },
 };
 
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 const USIZE_MSB: usize = ::core::isize::MIN as usize;
-#[cfg(feature = "std")]
+#[cfg(not(feature = "no_std"))]
 const USIZE_MSB: usize = ::std::isize::MIN as usize;
 
 impl<T> RwLock<T>

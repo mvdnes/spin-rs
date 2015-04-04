@@ -1,19 +1,19 @@
-#[cfg(feature = "std")]
+#[cfg(not(feature = "no_std"))]
 use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
-#[cfg(feature = "std")]
+#[cfg(not(feature = "no_std"))]
 use std::cell::UnsafeCell;
-#[cfg(feature = "std")]
+#[cfg(not(feature = "no_std"))]
 use std::marker::Sync;
-#[cfg(feature = "std")]
+#[cfg(not(feature = "no_std"))]
 use std::ops::{Drop, Deref, DerefMut};
 
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 use core::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 use core::cell::UnsafeCell;
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 use core::marker::Sync;
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 use core::ops::{Drop, Deref, DerefMut};
 
 /// This type provides MUTual EXclusion based on spinning.
@@ -115,11 +115,11 @@ unsafe impl<T> Sync for Mutex<T> {}
 ///     drop(lock);
 /// }
 /// ```
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 pub type StaticMutex = Mutex<()>;
 
 /// A initializer for StaticMutex, containing no data.
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 pub const STATIC_MUTEX_INIT: StaticMutex = Mutex {
     lock: ATOMIC_BOOL_INIT,
     data: UnsafeCell { value: () },

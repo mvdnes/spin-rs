@@ -3,13 +3,13 @@
 
 //! Synchronization primitives based on spinning
 
-#![cfg_attr(not(feature = "std"), feature(no_std, core))]
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(feature = "no_std", feature(no_std, core))]
+#![cfg_attr(feature = "no_std", no_std)]
 
-#[cfg(all(not(feature = "std"), test))]
+#[cfg(all(feature = "no_std", test))]
 extern crate std;
 
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "no_std")]
 #[macro_use]
 extern crate core;
 
