@@ -5,6 +5,8 @@ notifications:
     on_success: never
     on_failure: always
 
+sudo: false
+
 env:
   global:
     secure: GjE/J8MBUhiL3cRHDgYl11kKL3fqN7sJpP/UTPm3TcW9JN7B9uU9rs7XUcnLh4MTcTN2RpRk8ktpYFI4X6NzhWcF4cCdQSYGIebguz7X71ErYgYR+tI8wryOCKlAb6irqAse0vPQHurdu9W0MLUIq+WyJduK57z3pRnoQKwyg6A=
