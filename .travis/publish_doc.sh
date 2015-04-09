@@ -2,7 +2,8 @@
 
 if  [ "$TRAVIS_BRANCH" = "master" ] &&
     [ "$TRAVIS_PULL_REQUEST" = "false" ] &&
-    [ "$TRAVIS_REPO_SLUG" = "mvdnes/spinlock-rs" ]
+    [ "$TRAVIS_REPO_SLUG" = "mvdnes/spinlock-rs" ] &&
+    [ "$TRAVIS_RUST_VERSION" = "1.0.0-beta" ]
 then
     echo "Publishing documentation..."
 
