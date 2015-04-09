@@ -16,8 +16,8 @@ env:
         secure: GjE/J8MBUhiL3cRHDgYl11kKL3fqN7sJpP/UTPm3TcW9JN7B9uU9rs7XUcnLh4MTcTN2RpRk8ktpYFI4X6NzhWcF4cCdQSYGIebguz7X71ErYgYR+tI8wryOCKlAb6irqAse0vPQHurdu9W0MLUIq+WyJduK57z3pRnoQKwyg6A=
 
 script:
-    - '[ "$TRAVIS_RUST_VERSION" != "1.0.0-beta" ] && cargo build --features no_std'
-    - '[ "$TRAVIS_RUST_VERSION" != "1.0.0-beta" ] && cargo test --features no_std'
+    - '[ "$TRAVIS_RUST_VERSION" = "1.0.0-beta" ] || cargo build --features no_std'
+    - '[ "$TRAVIS_RUST_VERSION" = "1.0.0-beta" ] || cargo test --features no_std'
     - cargo build
     - cargo test
     - cargo doc --no-deps
