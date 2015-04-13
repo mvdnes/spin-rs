@@ -16,7 +16,7 @@ script:
     - '[ "$TRAVIS_RUST_VERSION" = "1.0.0-beta" ] || cargo test --features no_std'
     - cargo build
     - cargo test
-    - cargo doc
+    - cargo doc --no-deps
     - rustdoc --test README.md -L target/debug
 
 after_success:
