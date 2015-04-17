@@ -2,19 +2,25 @@ spinlock-rs
 ===========
 
 [![Build Status](https://travis-ci.org/mvdnes/spinlock-rs.svg)](https://travis-ci.org/mvdnes/spinlock-rs)
+[![Crates.io version](https://img.shields.io/crates/v/spin.svg)](https://crates.io/crates/spin)
 
 [Documentation](https://mvdnes.github.io/rust-docs/spinlock-rs/spin/index.html)
 
 This Rust library implements a simple
 [spinlock](https://en.wikipedia.org/wiki/Mutex).
 
-Build
------
-
-Just run `cargo build`.
-
 Usage
 -----
+
+Include the following code in your Cargo.toml
+
+```toml
+[dependencies]
+spin = "0.1"
+```
+
+Example
+-------
 
 When calling `lock` on a `Mutex` you will get a reference to the data. When this
 reference is dropped, the lock will be unlocked.
@@ -57,4 +63,3 @@ The behaviour of these lock is similar to their namesakes in `std::sync`. they
 differ on the following:
 
  - The lock will not be poisoned in case of failure;
- - The lock can also be used from a plain thread (such as a bare `pthread`).
