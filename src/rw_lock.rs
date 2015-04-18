@@ -113,7 +113,7 @@ impl<T> RwLock<T>
     /// once it is dropped.
     ///
     /// ```
-    /// let mylock = spin::RwLock::new(0us);
+    /// let mylock = spin::RwLock::new(0);
     /// {
     ///     let mut data = mylock.read();
     ///     // The lock is now locked and the data can be read
@@ -160,7 +160,7 @@ impl<T> RwLock<T>
     /// or writers will acquire the lock first.
     ///
     /// ```
-    /// let mylock = spin::RwLock::new(0us);
+    /// let mylock = spin::RwLock::new(0);
     /// {
     ///     match mylock.try_read() {
     ///         Some(data) => {
@@ -203,7 +203,7 @@ impl<T> RwLock<T>
     /// when dropped.
     ///
     /// ```
-    /// let mylock = spin::RwLock::new(0us);
+    /// let mylock = spin::RwLock::new(0);
     /// {
     ///     let mut data = mylock.write();
     ///     // The lock is now locked and the data can be written
@@ -242,7 +242,7 @@ impl<T> RwLock<T>
     /// returned.
     ///
     /// ```
-    /// let mylock = spin::RwLock::new(0us);
+    /// let mylock = spin::RwLock::new(0);
     /// {
     ///     match mylock.try_write() {
     ///         Some(mut data) => {
