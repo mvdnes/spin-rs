@@ -16,7 +16,7 @@ Include the following code in your Cargo.toml
 
 ```toml
 [dependencies]
-spin = "0.1"
+spin = "0.2"
 ```
 
 Example
