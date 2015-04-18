@@ -1,7 +1,7 @@
 language: rust
 
 rust:
-    - beta
+    - 1.0.0-beta.2
     - nightly
 
 sudo: false
@@ -12,8 +12,8 @@ notifications:
         on_failure: always
 
 script:
-    - '[ "$TRAVIS_RUST_VERSION" = "beta" ] || cargo build --features no_std'
-    - '[ "$TRAVIS_RUST_VERSION" = "beta" ] || cargo test --features no_std'
+    - '[ "$TRAVIS_RUST_VERSION" = "1.0.0-beta.2" ] || cargo build --features no_std'
+    - '[ "$TRAVIS_RUST_VERSION" = "1.0.0-beta.2" ] || cargo test --features no_std'
     - cargo build
     - cargo test
     - cargo doc --no-deps
