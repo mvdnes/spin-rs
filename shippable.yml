@@ -22,8 +22,8 @@ before_script:
     - cargo --version
 
 script:
-    - '[ "$TRAVIS_RUST_VERSION" != "nightly" ] || cargo build --features no_std'
-    - '[ "$TRAVIS_RUST_VERSION" != "nightly" ] || cargo test --features no_std'
+    - '[ "$RUST_VERSION" != "nightly" ] || cargo build --features no_std'
+    - '[ "$RUST_VERSION" != "nightly" ] || cargo test --features no_std'
     - cargo build
     - cargo test
     - cargo doc --no-deps
