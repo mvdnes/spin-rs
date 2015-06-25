@@ -59,29 +59,6 @@ pub struct RwLockWriteGuard<'a, T:'a>
 unsafe impl<T> Sync for RwLock<T> {}
 unsafe impl<T:'static+Send> Send for RwLock<T> {}
 
-/// A RwLock which may be used statically.
-///
-/// ```
-/// use spin::{StaticRwLock, STATIC_RWLOCK_INIT};
-///
-/// static SPRWLCK: StaticRwLock = STATIC_RWLOCK_INIT;
-///
-/// fn demo() {
-///     let lock = SPRWLCK.read();
-///     // do something with lock
-///     drop(lock);
-/// }
-/// ```
-#[cfg(feature = "no_std")]
-pub type StaticRwLock = RwLock<()>;
-
-/// A initializer for StaticRwLock, containing no data.
-#[cfg(feature = "no_std")]
-pub const STATIC_RWLOCK_INIT: StaticRwLock = RwLock {
-    lock: ATOMIC_USIZE_INIT,
-    data: UnsafeCell { value: () },
-};
-
 #[cfg(feature = "no_std")]
 const USIZE_MSB: usize = ::core::isize::MIN as usize;
 #[cfg(not(feature = "no_std"))]
@@ -90,6 +67,32 @@ const USIZE_MSB: usize = ::std::isize::MIN as usize;
 impl<T> RwLock<T>
 {
     /// Creates a new spinlock wrapping the supplied data.
+    ///
+    /// May be used statically:
+    ///
+    /// ```
+    /// use spin;
+    ///
+    /// static RW_LOCK: spin::RwLock<()> = spin::RwLock::new(());
+    ///
+    /// fn demo() {
+    ///     let lock = RW_LOCK.read();
+    ///     // do something with lock
+    ///     drop(lock);
+    /// }
+    /// ```
+    #[cfg(feature = "no_std")]
+    #[inline]
+    pub const fn new(user_data: T) -> RwLock<T>
+    {
+        RwLock
+        {
+            lock: ATOMIC_USIZE_INIT,
+            data: UnsafeCell::new(user_data),
+        }
+    }
+    /// Creates a new spinlock wrapping the supplied data.
+    #[cfg(not(feature = "no_std"))]
     #[inline]
     pub fn new(user_data: T) -> RwLock<T>
     {

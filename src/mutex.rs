@@ -102,32 +102,34 @@ pub struct MutexGuard<'a, T:'a>
 
 unsafe impl<T> Sync for Mutex<T> {}
 
-/// A Mutex which may be used statically.
-///
-/// ```
-/// use spin::{self, STATIC_MUTEX_INIT};
-///
-/// static SPLCK: spin::StaticMutex = STATIC_MUTEX_INIT;
-///
-/// fn demo() {
-///     let lock = SPLCK.lock();
-///     // do something with lock
-///     drop(lock);
-/// }
-/// ```
-#[cfg(feature = "no_std")]
-pub type StaticMutex = Mutex<()>;
-
-/// A initializer for StaticMutex, containing no data.
-#[cfg(feature = "no_std")]
-pub const STATIC_MUTEX_INIT: StaticMutex = Mutex {
-    lock: ATOMIC_BOOL_INIT,
-    data: UnsafeCell { value: () },
-};
-
 impl<T> Mutex<T>
 {
     /// Creates a new spinlock wrapping the supplied data.
+    ///
+    /// May be used statically:
+    ///
+    /// ```
+    /// use spin;
+    ///
+    /// static MUTEX: spin::Mutex<()> = spin::Mutex::new(());
+    ///
+    /// fn demo() {
+    ///     let lock = MUTEX.lock();
+    ///     // do something with lock
+    ///     drop(lock);
+    /// }
+    /// ```
+    #[cfg(feature = "no_std")]
+    pub const fn new(user_data: T) -> Mutex<T>
+    {
+        Mutex
+        {
+            lock: ATOMIC_BOOL_INIT,
+            data: UnsafeCell::new(user_data),
+        }
+    }
+    /// Creates a new spinlock wrapping the supplied data.
+    #[cfg(not(feature = "no_std"))]
     pub fn new(user_data: T) -> Mutex<T>
     {
         Mutex
