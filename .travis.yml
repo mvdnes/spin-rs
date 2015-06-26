@@ -1,7 +1,6 @@
 language: rust
 
 rust:
-    - stable
     - nightly
 
 sudo: false
@@ -12,8 +11,6 @@ notifications:
         on_failure: always
 
 script:
-    - '[ "$TRAVIS_RUST_VERSION" != "nightly" ] || cargo build --features no_std'
-    - '[ "$TRAVIS_RUST_VERSION" != "nightly" ] || cargo test --features no_std'
     - cargo build
     - cargo test
     - cargo doc --no-deps

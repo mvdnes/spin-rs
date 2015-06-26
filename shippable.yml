@@ -3,7 +3,6 @@ python:
     - 2.7
 
 env:
-    - RUST_VERSION=stable
     - RUST_VERSION=nightly
 
 notifications:
@@ -22,8 +21,6 @@ before_script:
     - cargo --version
 
 script:
-    - '[ "$RUST_VERSION" != "nightly" ] || cargo build --features no_std'
-    - '[ "$RUST_VERSION" != "nightly" ] || cargo test --features no_std'
     - cargo build
     - cargo test
     - cargo doc --no-deps
