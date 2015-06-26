@@ -13,11 +13,13 @@ This Rust library implements a simple
 Usage
 -----
 
+The current version only works on nightly. This is because it is inteded to use with `no_std` crates, which already need a nightly compiler.
+
 Include the following code in your Cargo.toml
 
 ```toml
 [dependencies]
-spin = "0.2"
+spin = "0.3"
 ```
 
 Example
