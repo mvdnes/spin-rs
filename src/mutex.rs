@@ -1,19 +1,6 @@
-#[cfg(not(feature = "no_std"))]
-use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
-#[cfg(not(feature = "no_std"))]
-use std::cell::UnsafeCell;
-#[cfg(not(feature = "no_std"))]
-use std::marker::Sync;
-#[cfg(not(feature = "no_std"))]
-use std::ops::{Drop, Deref, DerefMut};
-
-#[cfg(feature = "no_std")]
 use core::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
-#[cfg(feature = "no_std")]
 use core::cell::UnsafeCell;
-#[cfg(feature = "no_std")]
 use core::marker::Sync;
-#[cfg(feature = "no_std")]
 use core::ops::{Drop, Deref, DerefMut};
 
 /// This type provides MUTual EXclusion based on spinning.
@@ -109,6 +96,7 @@ impl<T> Mutex<T>
     /// May be used statically:
     ///
     /// ```
+    /// #![feature(const_fn)]
     /// use spin;
     ///
     /// static MUTEX: spin::Mutex<()> = spin::Mutex::new(());
@@ -119,18 +107,7 @@ impl<T> Mutex<T>
     ///     drop(lock);
     /// }
     /// ```
-    #[cfg(feature = "no_std")]
     pub const fn new(user_data: T) -> Mutex<T>
-    {
-        Mutex
-        {
-            lock: ATOMIC_BOOL_INIT,
-            data: UnsafeCell::new(user_data),
-        }
-    }
-    /// Creates a new spinlock wrapping the supplied data.
-    #[cfg(not(feature = "no_std"))]
-    pub fn new(user_data: T) -> Mutex<T>
     {
         Mutex
         {

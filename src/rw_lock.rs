@@ -1,18 +1,7 @@
-#[cfg(not(feature = "no_std"))]
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
-#[cfg(not(feature = "no_std"))]
-use std::cell::UnsafeCell;
-#[cfg(not(feature = "no_std"))]
-use std::ops::{Deref, DerefMut};
-
-#[cfg(feature = "no_std")]
 use core::prelude::*;
 
-#[cfg(feature = "no_std")]
 use core::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
-#[cfg(feature = "no_std")]
 use core::cell::UnsafeCell;
-#[cfg(feature = "no_std")]
 use core::ops::{Deref, DerefMut};
 
 /// A reader-writer lock
@@ -59,10 +48,7 @@ pub struct RwLockWriteGuard<'a, T:'a>
 unsafe impl<T> Sync for RwLock<T> {}
 unsafe impl<T:'static+Send> Send for RwLock<T> {}
 
-#[cfg(feature = "no_std")]
 const USIZE_MSB: usize = ::core::isize::MIN as usize;
-#[cfg(not(feature = "no_std"))]
-const USIZE_MSB: usize = ::std::isize::MIN as usize;
 
 impl<T> RwLock<T>
 {
@@ -71,6 +57,7 @@ impl<T> RwLock<T>
     /// May be used statically:
     ///
     /// ```
+    /// #![feature(const_fn)]
     /// use spin;
     ///
     /// static RW_LOCK: spin::RwLock<()> = spin::RwLock::new(());
@@ -81,20 +68,8 @@ impl<T> RwLock<T>
     ///     drop(lock);
     /// }
     /// ```
-    #[cfg(feature = "no_std")]
     #[inline]
     pub const fn new(user_data: T) -> RwLock<T>
-    {
-        RwLock
-        {
-            lock: ATOMIC_USIZE_INIT,
-            data: UnsafeCell::new(user_data),
-        }
-    }
-    /// Creates a new spinlock wrapping the supplied data.
-    #[cfg(not(feature = "no_std"))]
-    #[inline]
-    pub fn new(user_data: T) -> RwLock<T>
     {
         RwLock
         {

@@ -13,6 +13,3 @@ They may contain data,
 They are usable without `std`
 and static initializers are available.
 """
-
-[features]
-no_std = []
