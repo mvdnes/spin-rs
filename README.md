@@ -2,7 +2,6 @@ spinlock-rs
 ===========
 
 [![Build Status](https://travis-ci.org/mvdnes/spinlock-rs.svg)](https://travis-ci.org/mvdnes/spinlock-rs)
-[![Build Status](https://api.shippable.com/projects/553fdfb4edd7f2c052d66b56/badge?branchName=master)](https://app.shippable.com/projects/553fdfb4edd7f2c052d66b56/builds/latest)
 [![Crates.io version](https://img.shields.io/crates/v/spin.svg)](https://crates.io/crates/spin)
 
 [Documentation](https://mvdnes.github.io/rust-docs/spinlock-rs/spin/index.html)
