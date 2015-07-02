@@ -2,6 +2,8 @@ use core::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
 use core::cell::UnsafeCell;
 use core::marker::Sync;
 use core::ops::{Drop, Deref, DerefMut};
+use core::fmt;
+use core::option::Option::{self, None, Some};
 
 /// This type provides MUTual EXclusion based on spinning.
 ///
@@ -148,6 +150,37 @@ impl<T> Mutex<T>
             data: unsafe { &mut *self.data.get() },
         }
     }
+
+    /// Tries to lock the mutex. If it is already locked, it will return None. Otherwise it returns
+    /// a guard within Some.
+    fn try_lock(&self) -> Option<MutexGuard<T>>
+    {
+        if self.lock.compare_and_swap(false, true, Ordering::SeqCst) == false
+        {
+            Some(
+                MutexGuard {
+                    lock: &self.lock,
+                    data: unsafe { &mut *self.data.get() },
+                }
+            )
+        }
+        else
+        {
+            None
+        }
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for Mutex<T>
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
+        match self.try_lock()
+        {
+            Some(guard) => write!(f, "Mutex {{ data: {:?} }}", &*guard),
+            None => write!(f, "Mutex {{ <locked> }}"),
+        }
+    }
 }
 
 impl<'a, T> Deref for MutexGuard<'a, T>
@@ -167,5 +200,28 @@ impl<'a, T> Drop for MutexGuard<'a, T>
     fn drop(&mut self)
     {
         self.lock.store(false, Ordering::SeqCst);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn try_lock() {
+        let mutex = Mutex::new(42);
+
+        // First lock succeeds
+        let a = mutex.try_lock();
+        assert!(a.is_some());
+
+        // Additional lock failes
+        let b = mutex.try_lock();
+        assert!(b.is_none());
+
+        // After dropping lock, it succeeds again
+        ::core::mem::drop(a);
+        let c = mutex.try_lock();
+        assert!(c.is_some());
     }
 }

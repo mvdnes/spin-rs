@@ -3,6 +3,7 @@ use core::prelude::*;
 use core::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
+use core::fmt;
 
 /// A reader-writer lock
 ///
@@ -245,6 +246,18 @@ impl<T> RwLock<T>
             })
         } else {
             None
+        }
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for RwLock<T>
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
+        match self.try_read()
+        {
+            Some(guard) => write!(f, "RwLock {{ data: {:?} }}", &*guard),
+            None => write!(f, "RwLock {{ <locked> }}"),
         }
     }
 }
