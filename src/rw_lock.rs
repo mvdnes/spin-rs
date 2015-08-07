@@ -1,5 +1,3 @@
-use core::prelude::*;
-
 use core::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
@@ -119,7 +117,7 @@ impl<T> RwLock<T>
             old &= !USIZE_MSB;
 
             let new = old + 1;
-            debug_assert!(new != (!USIZE_MSB) & (-1));
+            debug_assert!(new != (!USIZE_MSB) & (!1));
 
             self.lock.compare_and_swap(old, new, Ordering::SeqCst) != old
         } {}
@@ -158,7 +156,7 @@ impl<T> RwLock<T>
         let old = (!USIZE_MSB) & self.lock.load(Ordering::Relaxed);
 
         let new = old + 1;
-        debug_assert!(new != (!USIZE_MSB) & (-1));
+        debug_assert!(new != (!USIZE_MSB) & (!1));
         if self.lock.compare_and_swap(old,
                                       new,
                                       Ordering::SeqCst) == old
