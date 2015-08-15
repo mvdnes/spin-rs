@@ -2,6 +2,7 @@ use core::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
 use core::fmt;
+use core::default::Default;
 
 /// A reader-writer lock
 ///
@@ -257,6 +258,12 @@ impl<T: fmt::Debug> fmt::Debug for RwLock<T>
             Some(guard) => write!(f, "RwLock {{ data: {:?} }}", &*guard),
             None => write!(f, "RwLock {{ <locked> }}"),
         }
+    }
+}
+
+impl<T: Default> Default for RwLock<T> {
+    fn default() -> RwLock<T> {
+        RwLock::new(Default::default())
     }
 }
 
