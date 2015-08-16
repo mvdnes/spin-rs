@@ -4,6 +4,7 @@ use core::marker::Sync;
 use core::ops::{Drop, Deref, DerefMut};
 use core::fmt;
 use core::option::Option::{self, None, Some};
+use core::default::Default;
 
 /// This type provides MUTual EXclusion based on spinning.
 ///
@@ -180,6 +181,12 @@ impl<T: fmt::Debug> fmt::Debug for Mutex<T>
             Some(guard) => write!(f, "Mutex {{ data: {:?} }}", &*guard),
             None => write!(f, "Mutex {{ <locked> }}"),
         }
+    }
+}
+
+impl<T: Default> Default for Mutex<T> {
+    fn default() -> Mutex<T> {
+        Mutex::new(Default::default())
     }
 }
 
