@@ -23,7 +23,7 @@ use spinlock::Spinlock;
 
 fn main()
 {
-    let spinlock = Spinlock::new(0u);
+    let spinlock = Spinlock::new(0);
 
     // Modify the data
     {

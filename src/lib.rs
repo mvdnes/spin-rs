@@ -56,7 +56,7 @@
 //! {
 //!     let my_barrier = barrier.clone();
 //!     let my_lock = spinlock.clone();
-//!     std::thread::Thread::spawn(move||
+//!     std::thread::spawn(move||
 //!     {
 //!         let mut guard = my_lock.lock();
 //!         *guard += 1;

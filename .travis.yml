@@ -14,4 +14,4 @@ script:
 - cargo build
 - cargo test
 - cargo doc --no-deps
-- rustdoc --test README.md -L target
+- rustdoc --test README.md -L target/debug
