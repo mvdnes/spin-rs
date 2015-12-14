@@ -1,5 +1,4 @@
 #![crate_type = "lib"]
-#![feature(unsafe_destructor)]
 #![warn(missing_docs)]
 
 #![no_std]
@@ -74,13 +73,12 @@
 //! assert_eq!(answer, numthreads);
 //! ```
 
+#![feature(const_fn)]
+
 #[cfg(test)]
 extern crate std;
 
-#[allow(unstable)]
-extern crate core;
-
-use core::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
+use core::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
 use core::cell::UnsafeCell;
 use core::marker::Sync;
 use core::ops::{Drop, Deref, DerefMut};
@@ -101,7 +99,6 @@ pub struct SpinlockGuard<'a, T:'a>
     data: &'a mut T,
 }
 
-#[allow(unstable)]
 unsafe impl<T> Sync for Spinlock<T> {}
 
 /// A Spinlock which may be used statically.
@@ -122,10 +119,10 @@ pub type StaticSpinlock = Spinlock<()>;
 /// A initializer for StaticSpinlock, containing no data.
 pub const STATIC_SPINLOCK_INIT: StaticSpinlock = Spinlock {
     lock: ATOMIC_BOOL_INIT,
-    data: UnsafeCell { value: () },
+    data: UnsafeCell::new(()),
 };
 
-#[deprecated = "renamed to STATIC_SPINLOCK_INIT"]
+//#[deprecated = "renamed to STATIC_SPINLOCK_INIT"]
 pub const INIT_STATIC_SPINLOCK: StaticSpinlock = STATIC_SPINLOCK_INIT;
 
 impl<T> Spinlock<T>
@@ -184,7 +181,6 @@ impl<'a, T> DerefMut for SpinlockGuard<'a, T>
     fn deref_mut<'b>(&'b mut self) -> &'b mut T { &mut *self.data }
 }
 
-#[unsafe_destructor]
 impl<'a, T> Drop for SpinlockGuard<'a, T>
 {
     /// The dropping of the SpinlockGuard will release the lock it was created from.
