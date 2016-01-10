@@ -92,6 +92,22 @@ pub struct MutexGuard<'a, T:'a>
 
 unsafe impl<T> Sync for Mutex<T> {}
 
+/// Called while spinning (name borrowed from Linux). Can be implemented to call
+/// a platform-specific method of lightening CPU load in spinlocks.
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[inline(always)]
+fn cpu_relax() {
+    // This instruction is meant for usage in spinlock loops
+    // (see Intel x86 manual, III, 4.2)
+    unsafe { asm!("pause" :::: "volatile"); }
+}
+
+#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+#[inline(always)]
+fn cpu_relax() {
+}
+
+
 impl<T> Mutex<T>
 {
     /// Creates a new spinlock wrapping the supplied data.
@@ -123,7 +139,7 @@ impl<T> Mutex<T>
     {
         while self.lock.compare_and_swap(false, true, Ordering::SeqCst) != false
         {
-            // Do nothing
+            cpu_relax();
         }
     }
 
