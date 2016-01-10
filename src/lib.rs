@@ -3,7 +3,7 @@
 
 //! Synchronization primitives based on spinning
 
-#![feature(no_std, const_fn)]
+#![feature(no_std, const_fn, asm)]
 #![no_std]
 
 #[cfg(test)]
