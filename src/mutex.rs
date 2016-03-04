@@ -122,7 +122,7 @@ impl<T> Mutex<T>
 
     fn obtain_lock(&self)
     {
-        while self.lock.compare_and_swap(false, true, Ordering::SeqCst) != false
+        while self.lock.compare_and_swap(false, true, Ordering::Acquire) != false
         {
             cpu_relax();
         }
@@ -157,7 +157,7 @@ impl<T> Mutex<T>
     /// a guard within Some.
     fn try_lock(&self) -> Option<MutexGuard<T>>
     {
-        if self.lock.compare_and_swap(false, true, Ordering::SeqCst) == false
+        if self.lock.compare_and_swap(false, true, Ordering::Acquire) == false
         {
             Some(
                 MutexGuard {
@@ -207,7 +207,7 @@ impl<'a, T> Drop for MutexGuard<'a, T>
     /// The dropping of the MutexGuard will release the lock it was created from.
     fn drop(&mut self)
     {
-        self.lock.store(false, Ordering::SeqCst);
+        self.lock.store(false, Ordering::Release);
     }
 }
 
