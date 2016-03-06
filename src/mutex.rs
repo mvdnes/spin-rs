@@ -5,6 +5,7 @@ use core::ops::{Drop, Deref, DerefMut};
 use core::fmt;
 use core::option::Option::{self, None, Some};
 use core::default::Default;
+use util::cpu_relax;
 
 /// This type provides MUTual EXclusion based on spinning.
 ///
@@ -92,22 +93,6 @@ pub struct MutexGuard<'a, T:'a>
 
 unsafe impl<T> Sync for Mutex<T> {}
 
-/// Called while spinning (name borrowed from Linux). Can be implemented to call
-/// a platform-specific method of lightening CPU load in spinlocks.
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
-fn cpu_relax() {
-    // This instruction is meant for usage in spinlock loops
-    // (see Intel x86 manual, III, 4.2)
-    unsafe { asm!("pause" :::: "volatile"); }
-}
-
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-#[inline(always)]
-fn cpu_relax() {
-}
-
-
 impl<T> Mutex<T>
 {
     /// Creates a new spinlock wrapping the supplied data.
@@ -137,7 +122,7 @@ impl<T> Mutex<T>
 
     fn obtain_lock(&self)
     {
-        while self.lock.compare_and_swap(false, true, Ordering::SeqCst) != false
+        while self.lock.compare_and_swap(false, true, Ordering::Acquire) != false
         {
             cpu_relax();
         }
@@ -172,7 +157,7 @@ impl<T> Mutex<T>
     /// a guard within Some.
     fn try_lock(&self) -> Option<MutexGuard<T>>
     {
-        if self.lock.compare_and_swap(false, true, Ordering::SeqCst) == false
+        if self.lock.compare_and_swap(false, true, Ordering::Acquire) == false
         {
             Some(
                 MutexGuard {
@@ -222,7 +207,7 @@ impl<'a, T> Drop for MutexGuard<'a, T>
     /// The dropping of the MutexGuard will release the lock it was created from.
     fn drop(&mut self)
     {
-        self.lock.store(false, Ordering::SeqCst);
+        self.lock.store(false, Ordering::Release);
     }
 }
 

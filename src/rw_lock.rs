@@ -3,6 +3,7 @@ use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
 use core::fmt;
 use core::default::Default;
+use util::cpu_relax;
 
 /// A reader-writer lock
 ///
@@ -112,7 +113,9 @@ impl<T> RwLock<T>
             while {
                 old = self.lock.load(Ordering::Relaxed);
                 old & USIZE_MSB != 0
-            } {}
+            } {
+                cpu_relax();
+            }
 
             // unset write bit
             old &= !USIZE_MSB;
@@ -121,7 +124,9 @@ impl<T> RwLock<T>
             debug_assert!(new != (!USIZE_MSB) & (!0));
 
             self.lock.compare_and_swap(old, new, Ordering::SeqCst) != old
-        } {}
+        } {
+            cpu_relax();
+        }
         RwLockReadGuard {
             lock: &self.lock,
             data: unsafe { & *self.data.get() },
@@ -203,7 +208,9 @@ impl<T> RwLock<T>
                                           Ordering::SeqCst) == old
             {
                 // Wait for readers to go away, then lock is ours.
-                while self.lock.load(Ordering::Relaxed) != USIZE_MSB { }
+                while self.lock.load(Ordering::Relaxed) != USIZE_MSB {
+                    cpu_relax();
+                }
                 break
             }
         }
