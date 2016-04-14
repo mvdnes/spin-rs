@@ -87,8 +87,8 @@ pub struct Mutex<T>
 /// When the guard falls out of scope it will release the lock.
 pub struct MutexGuard<'a, T:'a>
 {
-    lock: &'a AtomicBool,
     data: &'a mut T,
+    lock: &'a AtomicBool,
 }
 
 unsafe impl<T> Sync for Mutex<T> {}

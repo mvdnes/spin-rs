@@ -33,8 +33,8 @@ pub struct RwLock<T>
 /// potentially releasing the lock.
 pub struct RwLockReadGuard<'a, T:'a>
 {
-    lock: &'a AtomicUsize,
     data: &'a T,
+    lock: &'a AtomicUsize,
 }
 
 /// A guard to which the protected data can be written
@@ -42,8 +42,8 @@ pub struct RwLockReadGuard<'a, T:'a>
 /// When the guard falls out of scope it will release the lock.
 pub struct RwLockWriteGuard<'a, T:'a>
 {
-    lock: &'a AtomicUsize,
     data: &'a mut T,
+    lock: &'a AtomicUsize,
 }
 
 unsafe impl<T> Sync for RwLock<T> {}
