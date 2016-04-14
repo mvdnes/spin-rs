@@ -78,8 +78,8 @@ use util::cpu_relax;
 /// ```
 pub struct Mutex<T>
 {
-    lock: AtomicBool,
     data: UnsafeCell<T>,
+    lock: AtomicBool,
 }
 
 /// A guard to which the protected data can be accessed
