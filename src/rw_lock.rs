@@ -23,8 +23,8 @@ use util::cpu_relax;
 ///
 pub struct RwLock<T>
 {
-    lock: AtomicUsize,
     data: UnsafeCell<T>,
+    lock: AtomicUsize,
 }
 
 /// A guard to which the protected data can be read
