@@ -21,6 +21,28 @@ use util::cpu_relax;
 /// Based on
 /// https://jfdube.wordpress.com/2014/01/03/implementing-a-recursive-read-write-spinlock/
 ///
+/// # Examples
+///
+/// ```
+/// use spin;
+///
+/// let lock = spin::RwLock::new(5);
+///
+/// // many reader locks can be held at once
+/// {
+///     let r1 = lock.read();
+///     let r2 = lock.read();
+///     assert_eq!(*r1, 5);
+///     assert_eq!(*r2, 5);
+/// } // read locks are dropped at this point
+///
+/// // only one write lock may be held, however
+/// {
+///     let mut w = lock.write();
+///     *w += 1;
+///     assert_eq!(*w, 6);
+/// } // write lock is dropped here
+/// ```
 pub struct RwLock<T>
 {
     lock: AtomicUsize,
