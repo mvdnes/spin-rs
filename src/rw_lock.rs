@@ -21,7 +21,29 @@ use util::cpu_relax;
 /// Based on
 /// https://jfdube.wordpress.com/2014/01/03/implementing-a-recursive-read-write-spinlock/
 ///
-pub struct RwLock<T>
+/// # Examples
+///
+/// ```
+/// use spin;
+///
+/// let lock = spin::RwLock::new(5);
+///
+/// // many reader locks can be held at once
+/// {
+///     let r1 = lock.read();
+///     let r2 = lock.read();
+///     assert_eq!(*r1, 5);
+///     assert_eq!(*r2, 5);
+/// } // read locks are dropped at this point
+///
+/// // only one write lock may be held, however
+/// {
+///     let mut w = lock.write();
+///     *w += 1;
+///     assert_eq!(*w, 6);
+/// } // write lock is dropped here
+/// ```
+pub struct RwLock<T: ?Sized>
 {
     lock: AtomicUsize,
     data: UnsafeCell<T>,
@@ -31,7 +53,7 @@ pub struct RwLock<T>
 ///
 /// When the guard falls out of scope it will decrement the read count,
 /// potentially releasing the lock.
-pub struct RwLockReadGuard<'a, T:'a>
+pub struct RwLockReadGuard<'a, T: 'a + ?Sized>
 {
     lock: &'a AtomicUsize,
     data: &'a T,
@@ -40,7 +62,7 @@ pub struct RwLockReadGuard<'a, T:'a>
 /// A guard to which the protected data can be written
 ///
 /// When the guard falls out of scope it will release the lock.
-pub struct RwLockWriteGuard<'a, T:'a>
+pub struct RwLockWriteGuard<'a, T: 'a + ?Sized>
 {
     lock: &'a AtomicUsize,
     data: &'a mut T,
@@ -79,6 +101,18 @@ impl<T> RwLock<T>
         }
     }
 
+    /// Consumes this `RwLock`, returning the underlying data.
+    pub fn into_inner(self) -> T
+    {
+        // We know statically that there are no outstanding references to
+        // `self` so there's no need to lock.
+        let RwLock { data, .. } = self;
+        unsafe { data.into_inner() }
+    }
+}
+
+impl<T: ?Sized> RwLock<T>
+{
     /// Locks this rwlock with shared read access, blocking the current thread
     /// until it can be acquired.
     ///
@@ -256,7 +290,7 @@ impl<T> RwLock<T>
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for RwLock<T>
+impl<T: ?Sized + fmt::Debug> fmt::Debug for RwLock<T>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
@@ -268,38 +302,200 @@ impl<T: fmt::Debug> fmt::Debug for RwLock<T>
     }
 }
 
-impl<T: Default> Default for RwLock<T> {
+impl<T: ?Sized + Default> Default for RwLock<T> {
     fn default() -> RwLock<T> {
         RwLock::new(Default::default())
     }
 }
 
-impl<'rwlock, T> Deref for RwLockReadGuard<'rwlock, T> {
+impl<'rwlock, T: ?Sized> Deref for RwLockReadGuard<'rwlock, T> {
     type Target = T;
 
     fn deref(&self) -> &T { self.data }
 }
 
-impl<'rwlock, T> Deref for RwLockWriteGuard<'rwlock, T> {
+impl<'rwlock, T: ?Sized> Deref for RwLockWriteGuard<'rwlock, T> {
     type Target = T;
 
     fn deref(&self) -> &T { self.data }
 }
 
-impl<'rwlock, T> DerefMut for RwLockWriteGuard<'rwlock, T> {
+impl<'rwlock, T: ?Sized> DerefMut for RwLockWriteGuard<'rwlock, T> {
     fn deref_mut(&mut self) -> &mut T { self.data }
 }
 
-impl<'rwlock, T> Drop for RwLockReadGuard<'rwlock, T> {
+impl<'rwlock, T: ?Sized> Drop for RwLockReadGuard<'rwlock, T> {
     fn drop(&mut self) {
         debug_assert!(self.lock.load(Ordering::Relaxed) & (!USIZE_MSB) > 0);
         self.lock.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
-impl<'rwlock, T> Drop for RwLockWriteGuard<'rwlock, T> {
+impl<'rwlock, T: ?Sized> Drop for RwLockWriteGuard<'rwlock, T> {
     fn drop(&mut self) {
         debug_assert_eq!(self.lock.load(Ordering::Relaxed), USIZE_MSB);
         self.lock.store(0, Ordering::Relaxed);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::prelude::v1::*;
+
+    use std::sync::Arc;
+    use std::sync::mpsc::channel;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::thread;
+
+    use super::*;
+
+    #[derive(Eq, PartialEq, Debug)]
+    struct NonCopy(i32);
+
+    #[test]
+    fn smoke() {
+        let l = RwLock::new(());
+        drop(l.read());
+        drop(l.write());
+        drop((l.read(), l.read()));
+        drop(l.write());
+    }
+
+    // TODO: needs RNG
+    //#[test]
+    //fn frob() {
+    //    static R: RwLock = RwLock::new();
+    //    const N: usize = 10;
+    //    const M: usize = 1000;
+    //
+    //    let (tx, rx) = channel::<()>();
+    //    for _ in 0..N {
+    //        let tx = tx.clone();
+    //        thread::spawn(move|| {
+    //            let mut rng = rand::thread_rng();
+    //            for _ in 0..M {
+    //                if rng.gen_weighted_bool(N) {
+    //                    drop(R.write());
+    //                } else {
+    //                    drop(R.read());
+    //                }
+    //            }
+    //            drop(tx);
+    //        });
+    //    }
+    //    drop(tx);
+    //    let _ = rx.recv();
+    //    unsafe { R.destroy(); }
+    //}
+
+    #[test]
+    fn test_rw_arc() {
+        let arc = Arc::new(RwLock::new(0));
+        let arc2 = arc.clone();
+        let (tx, rx) = channel();
+
+        thread::spawn(move|| {
+            let mut lock = arc2.write();
+            for _ in 0..10 {
+                let tmp = *lock;
+                *lock = -1;
+                thread::yield_now();
+                *lock = tmp + 1;
+            }
+            tx.send(()).unwrap();
+        });
+
+        // Readers try to catch the writer in the act
+        let mut children = Vec::new();
+        for _ in 0..5 {
+            let arc3 = arc.clone();
+            children.push(thread::spawn(move|| {
+                let lock = arc3.read();
+                assert!(*lock >= 0);
+            }));
+        }
+
+        // Wait for children to pass their asserts
+        for r in children {
+            assert!(r.join().is_ok());
+        }
+
+        // Wait for writer to finish
+        rx.recv().unwrap();
+        let lock = arc.read();
+        assert_eq!(*lock, 10);
+    }
+
+    #[test]
+    fn test_rw_arc_access_in_unwind() {
+        let arc = Arc::new(RwLock::new(1));
+        let arc2 = arc.clone();
+        let _ = thread::spawn(move|| -> () {
+            struct Unwinder {
+                i: Arc<RwLock<isize>>,
+            }
+            impl Drop for Unwinder {
+                fn drop(&mut self) {
+                    let mut lock = self.i.write();
+                    *lock += 1;
+                }
+            }
+            let _u = Unwinder { i: arc2 };
+            panic!();
+        }).join();
+        let lock = arc.read();
+        assert_eq!(*lock, 2);
+    }
+
+    #[test]
+    fn test_rwlock_unsized() {
+        let rw: &RwLock<[i32]> = &RwLock::new([1, 2, 3]);
+        {
+            let b = &mut *rw.write();
+            b[0] = 4;
+            b[2] = 5;
+        }
+        let comp: &[i32] = &[4, 2, 5];
+        assert_eq!(&*rw.read(), comp);
+    }
+
+    #[test]
+    fn test_rwlock_try_write() {
+        use std::mem::drop;
+
+        let lock = RwLock::new(0isize);
+        let read_guard = lock.read();
+
+        let write_result = lock.try_write();
+        match write_result {
+            None => (),
+            Some(_) => assert!(false, "try_write should not succeed while read_guard is in scope"),
+        }
+
+        drop(read_guard);
+    }
+
+    #[test]
+    fn test_into_inner() {
+        let m = RwLock::new(NonCopy(10));
+        assert_eq!(m.into_inner(), NonCopy(10));
+    }
+
+    #[test]
+    fn test_into_inner_drop() {
+        struct Foo(Arc<AtomicUsize>);
+        impl Drop for Foo {
+            fn drop(&mut self) {
+                self.0.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+        let num_drops = Arc::new(AtomicUsize::new(0));
+        let m = RwLock::new(Foo(num_drops.clone()));
+        assert_eq!(num_drops.load(Ordering::SeqCst), 0);
+        {
+            let _inner = m.into_inner();
+            assert_eq!(num_drops.load(Ordering::SeqCst), 0);
+        }
+        assert_eq!(num_drops.load(Ordering::SeqCst), 1);
     }
 }
