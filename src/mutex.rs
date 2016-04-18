@@ -5,6 +5,7 @@ use core::ops::{Drop, Deref, DerefMut};
 use core::fmt;
 use core::option::Option::{self, None, Some};
 use core::default::Default;
+
 use util::cpu_relax;
 
 /// This type provides MUTual EXclusion based on spinning.

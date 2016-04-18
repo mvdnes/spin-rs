@@ -3,6 +3,7 @@ use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
 use core::fmt;
 use core::default::Default;
+
 use util::cpu_relax;
 
 /// A reader-writer lock
