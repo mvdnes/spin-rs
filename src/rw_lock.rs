@@ -69,8 +69,9 @@ pub struct RwLockWriteGuard<'a, T: 'a + ?Sized>
     data: &'a mut T,
 }
 
-unsafe impl<T> Sync for RwLock<T> {}
-unsafe impl<T:'static+Send> Send for RwLock<T> {}
+// Same unsafe impls as `std::sync::RwLock`
+unsafe impl<T: ?Sized + Send + Sync> Send for RwLock<T> {}
+unsafe impl<T: ?Sized + Send + Sync> Sync for RwLock<T> {}
 
 const USIZE_MSB: usize = ::core::isize::MIN as usize;
 

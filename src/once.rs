@@ -25,6 +25,8 @@ pub struct Once<T> {
     data: UnsafeCell<Option<T>>, // TODO remove option and use mem::uninitialized
 }
 
+// Same unsafe impls as `std::sync::RwLock`, because this also allows for
+// concurrent reads.
 unsafe impl<T: Sync + Sync> Sync for Once<T> {}
 unsafe impl<T: Sync + Sync> Send for Once<T> {}
 
