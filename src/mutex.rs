@@ -92,7 +92,9 @@ pub struct MutexGuard<'a, T: ?Sized + 'a>
     data: &'a mut T,
 }
 
-unsafe impl<T> Sync for Mutex<T> {}
+// Same unsafe impls as `std::sync::Mutex`
+unsafe impl<T: ?Sized + Send> Sync for Mutex<T> {}
+unsafe impl<T: ?Sized + Send> Send for Mutex<T> {}
 
 impl<T> Mutex<T>
 {
