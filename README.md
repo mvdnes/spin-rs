@@ -1,10 +1,10 @@
-spinlock-rs
+spin-rs
 ===========
 
-[![Build Status](https://travis-ci.org/mvdnes/spinlock-rs.svg)](https://travis-ci.org/mvdnes/spinlock-rs)
+[![Build Status](https://travis-ci.org/mvdnes/spin-rs.svg)](https://travis-ci.org/mvdnes/spin-rs)
 [![Crates.io version](https://img.shields.io/crates/v/spin.svg)](https://crates.io/crates/spin)
 
-[Documentation](https://mvdnes.github.io/rust-docs/spinlock-rs/spin/index.html)
+[Documentation](https://mvdnes.github.io/rust-docs/spin-rs/spin/index.html)
 
 This Rust library implements a simple
 [spinlock](https://en.wikipedia.org/wiki/Mutex).
