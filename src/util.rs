@@ -1,6 +1,6 @@
 /// Called while spinning (name borrowed from Linux). Can be implemented to call
 /// a platform-specific method of lightening CPU load in spinlocks.
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(feature = "asm", any(target_arch = "x86", target_arch = "x86_64")))]
 #[inline(always)]
 pub fn cpu_relax() {
     // This instruction is meant for usage in spinlock loops
@@ -8,7 +8,7 @@ pub fn cpu_relax() {
     unsafe { asm!("pause" :::: "volatile"); }
 }
 
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+#[cfg(any(not(feature = "asm"), not(any(target_arch = "x86", target_arch = "x86_64"))))]
 #[inline(always)]
 pub fn cpu_relax() {
 }

@@ -14,3 +14,8 @@ They may contain data,
 They are usable without `std`
 and static initializers are available.
 """
+
+[features]
+asm = []
+unstable = ["asm"]
+default = ["unstable"]

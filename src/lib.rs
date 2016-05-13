@@ -3,7 +3,8 @@
 
 //! Synchronization primitives based on spinning
 
-#![feature(const_fn, asm, core_intrinsics)]
+#![cfg_attr(feature = "asm", feature(asm))]
+#![feature(const_fn, core_intrinsics)]
 #![no_std]
 
 #[cfg(test)]
