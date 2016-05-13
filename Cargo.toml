@@ -5,8 +5,8 @@ version = "0.4.0"
 authors = [ "Mathijs van de Nes <git@mathijs.vd-nes.nl>",
             "John Ericson <John_Ericson@Yahoo.com>" ]
 license = "MIT"
-repository = "https://github.com/mvdnes/spinlock-rs.git"
-documentation = "https://mvdnes.github.io/rust-docs/spinlock-rs/spin/index.html"
+repository = "https://github.com/mvdnes/spin-rs.git"
+documentation = "https://mvdnes.github.io/rust-docs/spin-rs/spin/index.html"
 keywords = ["spinlock", "mutex", "rwlock"]
 description = """
 Synchronization primitives based on spinning.
