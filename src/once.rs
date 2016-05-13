@@ -36,6 +36,18 @@ const INCOMPLETE: usize = 0x0;
 const RUNNING: usize = 0x1;
 const COMPLETE: usize = 0x2;
 
+#[cfg(feature = "core_intrinsics")]
+#[inline(always)]
+fn unreachable() -> ! {
+    unsafe { ::core::intrinsics::unreachable() }
+}
+
+#[cfg(not(feature = "core_intrinsics"))]
+#[inline(always)]
+fn unreachable() -> ! {
+    unreachable!()
+}
+
 impl<T> Once<T> {
     /// Creates a new `Once` value.
     pub const fn new() -> Once<T> {
@@ -47,7 +59,7 @@ impl<T> Once<T> {
 
     fn force_get<'a>(&'a self) -> &'a T {
         match unsafe { &*self.data.get() }.as_ref() {
-            None    => unsafe { ::core::intrinsics::unreachable() },
+            None    => unreachable(),
             Some(p) => p,
         }
     }
@@ -107,7 +119,7 @@ impl<T> Once<T> {
                     status = self.state.load(Ordering::SeqCst)
                 },
                 COMPLETE => return self.force_get(),
-                _ => unsafe { ::core::intrinsics::unreachable() },
+                _ => unreachable(),
             }
         }
     }
@@ -128,7 +140,7 @@ impl<T> Once<T> {
                 INCOMPLETE => return None,
                 RUNNING    => cpu_relax(), // We spin
                 COMPLETE   => return Some(self.force_get()),
-                _ => unsafe { ::core::intrinsics::unreachable() },
+                _ => unreachable(),
             }
         }
     }

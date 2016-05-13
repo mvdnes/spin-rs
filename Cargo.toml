@@ -17,5 +17,6 @@ and static initializers are available.
 
 [features]
 asm = []
-unstable = ["asm"]
+core_intrinsics = []
+unstable = ["asm", "core_intrinsics"]
 default = ["unstable"]
