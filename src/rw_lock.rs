@@ -94,7 +94,33 @@ impl<T> RwLock<T>
     /// }
     /// ```
     #[inline]
+    #[cfg(feature = "const_fn")]
     pub const fn new(user_data: T) -> RwLock<T>
+    {
+        RwLock
+        {
+            lock: ATOMIC_USIZE_INIT,
+            data: UnsafeCell::new(user_data),
+        }
+    }
+
+    /// Creates a new spinlock wrapping the supplied data.
+    ///
+    /// If you want to use it statically, you can use the `const_fn` feature.
+    ///
+    /// ```
+    /// use spin;
+    ///
+    /// fn demo() {
+    ///     let rw_lock = spin::RwLock::new(());
+    ///     let lock = rw_lock.read();
+    ///     // do something with lock
+    ///     drop(lock);
+    /// }
+    /// ```
+    #[inline]
+    #[cfg(not(feature = "const_fn"))]
+    pub fn new(user_data: T) -> RwLock<T>
     {
         RwLock
         {
