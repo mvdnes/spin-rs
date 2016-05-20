@@ -12,13 +12,18 @@ This Rust library implements a simple
 Usage
 -----
 
-The current version only works on nightly. This is because it is inteded to use with `no_std` crates, which already need a nightly compiler.
+By default this crate only works on nightly but you can disable the default features
+if you want to run on stable. Nightly is more efficient than stable currently.
+
+Also, `Once` is only available on nightly as it is only useful when `const_fn` is available.
 
 Include the following code in your Cargo.toml
 
 ```toml
-[dependencies]
-spin = "0.3"
+[dependencies.spin]
+version = "0.3"
+# If you want to run on stable you will need to add the following:
+# default-features = false
 ```
 
 Example

@@ -114,7 +114,32 @@ impl<T> Mutex<T>
     ///     drop(lock);
     /// }
     /// ```
+    #[cfg(feature = "const_fn")]
     pub const fn new(user_data: T) -> Mutex<T>
+    {
+        Mutex
+        {
+            lock: ATOMIC_BOOL_INIT,
+            data: UnsafeCell::new(user_data),
+        }
+    }
+
+    /// Creates a new spinlock wrapping the supplied data.
+    ///
+    /// If you want to use it statically, you can use the `const_fn` feature.
+    ///
+    /// ```
+    /// use spin;
+    ///
+    /// fn demo() {
+    ///     let mutex = spin::Mutex::new(());
+    ///     let lock = mutex.lock();
+    ///     // do something with lock
+    ///     drop(lock);
+    /// }
+    /// ```
+    #[cfg(not(feature = "const_fn"))]
+    pub fn new(user_data: T) -> Mutex<T>
     {
         Mutex
         {
@@ -247,6 +272,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "const_fn")]
     fn lots_and_lots() {
         static M: Mutex<()>  = Mutex::new(());
         static mut CNT: u32 = 0;

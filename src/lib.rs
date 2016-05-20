@@ -3,7 +3,10 @@
 
 //! Synchronization primitives based on spinning
 
-#![feature(const_fn, asm, core_intrinsics)]
+#![cfg_attr(feature = "asm", feature(asm))]
+#![cfg_attr(feature = "core_intrinsics", feature(core_intrinsics))]
+#![cfg_attr(feature = "const_fn", feature(const_fn))]
+
 #![no_std]
 
 #[cfg(test)]
@@ -12,10 +15,14 @@ extern crate std;
 
 pub use mutex::*;
 pub use rw_lock::*;
+
+#[cfg(feature = "once")]
 pub use once::*;
 
 mod mutex;
 mod rw_lock;
+
+#[cfg(feature = "once")]
 mod once;
 
 mod util;

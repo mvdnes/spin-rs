@@ -14,3 +14,11 @@ They may contain data,
 They are usable without `std`
 and static initializers are available.
 """
+
+[features]
+asm = []
+core_intrinsics = []
+const_fn = []
+once = ["const_fn"]
+unstable = ["asm", "core_intrinsics", "const_fn", "once"]
+default = ["unstable"]
