@@ -194,7 +194,7 @@ impl<T: ?Sized> Mutex<T>
 
     /// Tries to lock the mutex. If it is already locked, it will return None. Otherwise it returns
     /// a guard within Some.
-    fn try_lock(&self) -> Option<MutexGuard<T>>
+    pub fn try_lock(&self) -> Option<MutexGuard<T>>
     {
         if self.lock.compare_and_swap(false, true, Ordering::Acquire) == false
         {
