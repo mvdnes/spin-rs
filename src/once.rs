@@ -35,6 +35,7 @@ unsafe impl<T: Sync + Sync> Send for Once<T> {}
 const INCOMPLETE: usize = 0x0;
 const RUNNING: usize = 0x1;
 const COMPLETE: usize = 0x2;
+const PANICKED: usize = 0x3;
 
 #[cfg(feature = "core_intrinsics")]
 #[inline(always)]
@@ -103,9 +104,14 @@ impl<T> Once<T> {
                                                  RUNNING,
                                                  Ordering::SeqCst);
             if status == INCOMPLETE { // We init
+                // We use a guard (Finish) to catch panics caused by builder
+                let mut finish = Finish { state: &self.state, panicked: true };
                 unsafe { *self.data.get() = Some(builder()) };
+                finish.panicked = false;
+
                 status = COMPLETE;
                 self.state.store(status, Ordering::SeqCst);
+
                 // This next line is strictly an optomization
                 return self.force_get();
             }
@@ -118,6 +124,7 @@ impl<T> Once<T> {
                     cpu_relax();
                     status = self.state.load(Ordering::SeqCst)
                 },
+                PANICKED => panic!("Once has panicked"),
                 COMPLETE => return self.force_get(),
                 _ => unreachable(),
             }
@@ -140,8 +147,22 @@ impl<T> Once<T> {
                 INCOMPLETE => return None,
                 RUNNING    => cpu_relax(), // We spin
                 COMPLETE   => return Some(self.force_get()),
+                PANICKED   => panic!("Once has panicked"),
                 _ => unreachable(),
             }
+        }
+    }
+}
+
+struct Finish<'a> {
+    state: &'a AtomicUsize,
+    panicked: bool,
+}
+
+impl<'a> Drop for Finish<'a> {
+    fn drop(&mut self) {
+        if self.panicked {
+            self.state.store(PANICKED, Ordering::SeqCst);
         }
     }
 }
@@ -235,5 +256,24 @@ mod tests {
         assert!(INIT.wait().is_none());
         INIT.call_once(|| 3);
         assert_eq!(INIT.wait().map(|r| *r), Some(3));
+    }
+
+    #[test]
+    fn panic() {
+        use ::std::panic;
+
+        static INIT: Once<()> = Once::new();
+
+        // poison the once
+        let t = panic::catch_unwind(|| {
+            INIT.call_once(|| panic!());
+        });
+        assert!(t.is_err());
+
+        // poisoning propagates
+        let t = panic::catch_unwind(|| {
+            INIT.call_once(|| {});
+        });
+        assert!(t.is_err());
     }
 }
