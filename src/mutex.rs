@@ -163,7 +163,11 @@ impl<T: ?Sized> Mutex<T>
     {
         while self.lock.compare_and_swap(false, true, Ordering::Acquire) != false
         {
-            cpu_relax();
+            // Wait until the lock looks unlocked before retrying
+            while self.lock.load(Ordering::Relaxed)
+            {
+                cpu_relax();
+            }
         }
     }
 
