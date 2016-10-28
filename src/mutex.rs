@@ -196,6 +196,17 @@ impl<T: ?Sized> Mutex<T>
         }
     }
 
+    /// Force unlock the spinlock.
+    ///
+    /// This is *extremely* unsafe if the lock is not held by the current
+    /// thread. However, this can be useful in some instances for exposing the
+    /// lock to FFI that doesn't know how to deal with RAII.
+    ///
+    /// If the lock isn't held, this is a no-op.
+    pub unsafe fn force_unlock(&self) {
+        self.lock.store(false, Ordering::Release);
+    }
+
     /// Tries to lock the mutex. If it is already locked, it will return None. Otherwise it returns
     /// a guard within Some.
     pub fn try_lock(&self) -> Option<MutexGuard<T>>
@@ -395,5 +406,15 @@ mod tests {
         }
         let comp: &[i32] = &[4, 2, 5];
         assert_eq!(&*mutex.lock(), comp);
+    }
+
+    #[test]
+    fn test_mutex_force_lock() {
+        let lock = Mutex::new(());
+        ::std::mem::forget(lock.lock());
+        unsafe {
+            lock.force_unlock();
+        } 
+        assert!(lock.try_lock().is_some());
     }
 }
