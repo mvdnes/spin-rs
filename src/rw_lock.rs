@@ -238,6 +238,27 @@ impl<T: ?Sized> RwLock<T>
         }
     }
 
+    /// Force decrement the reader count.
+    ///
+    /// This is *extremely* unsafe if there are outstanding `RwLockReadGuard`s
+    /// live, or if called more times than `read` has been called, but can be
+    /// useful in FFI contexts where the caller doesn't know how to deal with
+    /// RAII.
+    pub unsafe fn force_read_decrement(&self) {
+        debug_assert!(self.lock.load(Ordering::Relaxed) & (!USIZE_MSB) > 0);
+        self.lock.fetch_sub(1, Ordering::SeqCst);
+    }
+
+    /// Force unlock exclusive write access.
+    ///
+    /// This is *extremely* unsafe if there are outstanding `RwLockWriteGuard`s
+    /// live, or if called when there are current readers, but can be useful in
+    /// FFI contexts where the caller doesn't know how to deal with RAII.
+    pub unsafe fn force_write_unlock(&self) {
+        debug_assert_eq!(self.lock.load(Ordering::Relaxed), USIZE_MSB);
+        self.lock.store(0, Ordering::Relaxed);
+    }
+
     /// Lock this rwlock with exclusive write access, blocking the current
     /// thread until it can be acquired.
     ///
@@ -525,5 +546,34 @@ mod tests {
             assert_eq!(num_drops.load(Ordering::SeqCst), 0);
         }
         assert_eq!(num_drops.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn test_force_read_decrement() {
+        let m = RwLock::new(());
+        ::std::mem::forget(m.read());
+        ::std::mem::forget(m.read());
+        ::std::mem::forget(m.read());
+        assert!(m.try_write().is_none());
+        unsafe {
+            m.force_read_decrement();
+            m.force_read_decrement();
+        }
+        assert!(m.try_write().is_none());
+        unsafe {
+            m.force_read_decrement();
+        }
+        assert!(m.try_write().is_some());
+    }
+
+    #[test]
+    fn test_force_write_unlock() {
+        let m = RwLock::new(());
+        ::std::mem::forget(m.write());
+        assert!(m.try_read().is_none());
+        unsafe {
+            m.force_write_unlock();
+        }
+        assert!(m.try_read().is_some());
     }
 }
