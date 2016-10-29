@@ -21,7 +21,7 @@ Include the following code in your Cargo.toml
 
 ```toml
 [dependencies.spin]
-version = "0.3"
+version = "0.4"
 # If you want to run on stable you will need to add the following:
 # default-features = false
 ```
