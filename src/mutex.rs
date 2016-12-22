@@ -79,8 +79,8 @@ use util::cpu_relax;
 /// ```
 pub struct Mutex<T: ?Sized>
 {
-    lock: AtomicBool,
     data: UnsafeCell<T>,
+    lock: AtomicBool,
 }
 
 /// A guard to which the protected data can be accessed
@@ -88,8 +88,8 @@ pub struct Mutex<T: ?Sized>
 /// When the guard falls out of scope it will release the lock.
 pub struct MutexGuard<'a, T: ?Sized + 'a>
 {
-    lock: &'a AtomicBool,
     data: &'a mut T,
+    lock: &'a AtomicBool,
 }
 
 // Same unsafe impls as `std::sync::Mutex`

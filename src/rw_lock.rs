@@ -46,8 +46,8 @@ use util::cpu_relax;
 /// ```
 pub struct RwLock<T: ?Sized>
 {
-    lock: AtomicUsize,
     data: UnsafeCell<T>,
+    lock: AtomicUsize,
 }
 
 /// A guard to which the protected data can be read
@@ -56,8 +56,8 @@ pub struct RwLock<T: ?Sized>
 /// potentially releasing the lock.
 pub struct RwLockReadGuard<'a, T: 'a + ?Sized>
 {
-    lock: &'a AtomicUsize,
     data: &'a T,
+    lock: &'a AtomicUsize,
 }
 
 /// A guard to which the protected data can be written
@@ -65,8 +65,8 @@ pub struct RwLockReadGuard<'a, T: 'a + ?Sized>
 /// When the guard falls out of scope it will release the lock.
 pub struct RwLockWriteGuard<'a, T: 'a + ?Sized>
 {
-    lock: &'a AtomicUsize,
     data: &'a mut T,
+    lock: &'a AtomicUsize,
 }
 
 // Same unsafe impls as `std::sync::RwLock`
