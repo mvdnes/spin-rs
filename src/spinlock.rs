@@ -4,6 +4,7 @@ use core::default::Default;
 use lock::Lock;
 use util::cpu_relax;
 
+/// This type provides Lock based on spinning.
 pub struct SpinLock
 {
     lock: AtomicBool,
@@ -14,12 +15,18 @@ unsafe impl Send for SpinLock {}
 
 impl SpinLock
 {
+	/// Creates a new spinlock without data.
+    ///
+    /// May be used statically:
     #[cfg(feature = "const_fn")]
     pub const fn new() -> SpinLock
     {
         SpinLock { lock: ATOMIC_BOOL_INIT }
     }
 
+	/// Creates a new spinlock without data.
+    ///
+    /// If you want to use it statically, you can use the `const_fn` feature.
     #[cfg(not(feature = "const_fn"))]
     pub fn new() -> SpinLock
     {

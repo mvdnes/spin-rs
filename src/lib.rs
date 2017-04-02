@@ -24,6 +24,9 @@ mod spinlock;
 mod mutex;
 mod rw_lock;
 
+pub use lock::*;
+pub use spinlock::*;
+
 #[cfg(feature = "once")]
 mod once;
 
