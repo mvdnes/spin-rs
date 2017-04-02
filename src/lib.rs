@@ -19,6 +19,8 @@ pub use rw_lock::*;
 #[cfg(feature = "once")]
 pub use once::*;
 
+mod lock;
+mod spinlock;
 mod mutex;
 mod rw_lock;
 
