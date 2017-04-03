@@ -26,6 +26,7 @@ mod rw_lock;
 
 pub use lock::*;
 pub use spinlock::*;
+pub use util::*;
 
 #[cfg(feature = "once")]
 mod once;
