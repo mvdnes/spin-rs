@@ -7,7 +7,7 @@ spin-rs
 [Documentation](https://mvdnes.github.io/rust-docs/spin-rs/spin/index.html)
 
 This Rust library implements a simple
-[spinlock](https://en.wikipedia.org/wiki/Mutex).
+[spinlock](https://en.wikipedia.org/wiki/Spinlock).
 
 Usage
 -----
