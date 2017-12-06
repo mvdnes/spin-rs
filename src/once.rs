@@ -74,8 +74,8 @@ impl<T> Once<T> {
     ///
     /// When this function returns, it is guaranteed that some initialization
     /// has run and completed (it may not be the closure specified). The
-    /// returned pointer points to the return value of when of those
-    /// initialization closures.
+    /// returned pointer will point to the result from the closure that was
+    /// ran.
     ///
     /// # Examples
     ///
