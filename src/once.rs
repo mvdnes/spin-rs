@@ -28,7 +28,7 @@ pub struct Once<T> {
 // Same unsafe impls as `std::sync::RwLock`, because this also allows for
 // concurrent reads.
 unsafe impl<T: Send + Sync> Sync for Once<T> {}
-unsafe impl<T: Send + Sync> Send for Once<T> {}
+unsafe impl<T: Send> Send for Once<T> {}
 
 // Four states that a Once can be in, encoded into the lower bits of `state` in
 // the Once structure.
