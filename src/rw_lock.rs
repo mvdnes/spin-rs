@@ -20,7 +20,7 @@ use util::cpu_relax;
 /// to allow access to the contained of the lock.
 ///
 /// Based on
-/// https://jfdube.wordpress.com/2014/01/03/implementing-a-recursive-read-write-spinlock/
+/// <https://jfdube.wordpress.com/2014/01/03/implementing-a-recursive-read-write-spinlock/>
 ///
 /// # Examples
 ///
