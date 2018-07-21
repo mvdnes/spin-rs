@@ -3,7 +3,6 @@
 
 //! Synchronization primitives based on spinning
 
-#![cfg_attr(feature = "asm", feature(asm))]
 #![cfg_attr(feature = "core_intrinsics", feature(core_intrinsics))]
 #![cfg_attr(feature = "const_fn", feature(const_fn, const_unsafe_cell_new, const_atomic_usize_new))]
 
@@ -24,5 +23,3 @@ mod rw_lock;
 
 #[cfg(feature = "once")]
 mod once;
-
-mod util;
