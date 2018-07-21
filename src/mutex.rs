@@ -153,7 +153,7 @@ impl<T> Mutex<T>
         // We know statically that there are no outstanding references to
         // `self` so there's no need to lock.
         let Mutex { data, .. } = self;
-        unsafe { data.into_inner() }
+        data.into_inner()
     }
 }
 
