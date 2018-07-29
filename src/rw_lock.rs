@@ -1,10 +1,8 @@
-use core::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use core::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT, spin_loop_hint as cpu_relax};
 use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
 use core::fmt;
 use core::default::Default;
-
-use util::cpu_relax;
 
 /// A reader-writer lock
 ///

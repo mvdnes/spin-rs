@@ -1,12 +1,10 @@
-use core::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
+use core::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT, spin_loop_hint as cpu_relax};
 use core::cell::UnsafeCell;
 use core::marker::Sync;
 use core::ops::{Drop, Deref, DerefMut};
 use core::fmt;
 use core::option::Option::{self, None, Some};
 use core::default::Default;
-
-use util::cpu_relax;
 
 /// This type provides MUTual EXclusion based on spinning.
 ///

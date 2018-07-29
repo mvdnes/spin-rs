@@ -1,7 +1,5 @@
 use core::cell::UnsafeCell;
-use core::sync::atomic::{AtomicUsize, Ordering};
-
-use util::cpu_relax;
+use core::sync::atomic::{AtomicUsize, Ordering, spin_loop_hint as cpu_relax};
 
 /// A synchronization primitive which can be used to run a one-time global
 /// initialization. Unlike its std equivalent, this is generalized so that The
