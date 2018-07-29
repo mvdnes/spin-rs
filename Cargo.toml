@@ -16,8 +16,7 @@ and static initializers are available.
 """
 
 [features]
-core_intrinsics = []
 const_fn = []
 once = ["const_fn"]
-unstable = ["core_intrinsics", "const_fn", "once"]
+unstable = ["const_fn", "once"]
 default = ["unstable"]
