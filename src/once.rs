@@ -35,17 +35,7 @@ const RUNNING: usize = 0x1;
 const COMPLETE: usize = 0x2;
 const PANICKED: usize = 0x3;
 
-#[cfg(feature = "core_intrinsics")]
-#[inline(always)]
-fn unreachable() -> ! {
-    unsafe { ::core::intrinsics::unreachable() }
-}
-
-#[cfg(not(feature = "core_intrinsics"))]
-#[inline(always)]
-fn unreachable() -> ! {
-    unreachable!()
-}
+use core::hint::unreachable_unchecked as unreachable;
 
 impl<T> Once<T> {
     /// Creates a new `Once` value.
@@ -58,7 +48,7 @@ impl<T> Once<T> {
 
     fn force_get<'a>(&'a self) -> &'a T {
         match unsafe { &*self.data.get() }.as_ref() {
-            None    => unreachable(),
+            None    => unsafe { unreachable() },
             Some(p) => p,
         }
     }
@@ -124,7 +114,7 @@ impl<T> Once<T> {
                 },
                 PANICKED => panic!("Once has panicked"),
                 COMPLETE => return self.force_get(),
-                _ => unreachable(),
+                _ => unsafe { unreachable() },
             }
         }
     }
@@ -146,7 +136,7 @@ impl<T> Once<T> {
                 RUNNING    => cpu_relax(), // We spin
                 COMPLETE   => return Some(self.force_get()),
                 PANICKED   => panic!("Once has panicked"),
-                _ => unreachable(),
+                _ => unsafe { unreachable() },
             }
         }
     }
