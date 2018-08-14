@@ -3,7 +3,7 @@
 
 //! Synchronization primitives based on spinning
 
-#![cfg_attr(feature = "const_fn", feature(const_fn, const_unsafe_cell_new, const_atomic_usize_new))]
+#![cfg_attr(feature = "const_fn", feature(const_fn))]
 
 #![no_std]
 
