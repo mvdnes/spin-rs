@@ -10,16 +10,10 @@ use core::default::Default;
 ///
 /// # Description
 ///
-/// This structure behaves a lot like a normal Mutex. There are some differences:
+/// The behaviour of these lock is similar to their namesakes in `std::sync`. they
+/// differ on the following:
 ///
-/// - It may be used outside the runtime.
-///   - A normal mutex will fail when used without the runtime, this will just lock
-///   - When the runtime is present, it will call the deschedule function when appropriate
-/// - No lock poisoning. When a fail occurs when the lock is held, no guarantees are made
-///
-/// When calling rust functions from bare threads, such as C `pthread`s, this lock will be very
-/// helpful. In other cases however, you are encouraged to use the locks from the standard
-/// library.
+/// - The lock will not be poisoned in case of failure;
 ///
 /// # Simple examples
 ///
