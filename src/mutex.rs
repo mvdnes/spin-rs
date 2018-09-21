@@ -84,6 +84,7 @@ pub struct Mutex<T: ?Sized>
 /// A guard to which the protected data can be accessed
 ///
 /// When the guard falls out of scope it will release the lock.
+#[derive(Debug)]
 pub struct MutexGuard<'a, T: ?Sized + 'a>
 {
     lock: &'a AtomicBool,
