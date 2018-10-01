@@ -38,12 +38,22 @@ const PANICKED: usize = 0x3;
 use core::hint::unreachable_unchecked as unreachable;
 
 impl<T> Once<T> {
+    /// Initialization constant of `Once`.
+    pub const INIT: Self = Once {
+        state: AtomicUsize::new(INCOMPLETE),
+        data: UnsafeCell::new(None),
+    };
+
     /// Creates a new `Once` value.
+    #[cfg(feature = "const_fn")]
     pub const fn new() -> Once<T> {
-        Once {
-            state: AtomicUsize::new(INCOMPLETE),
-            data: UnsafeCell::new(None),
-        }
+        Self::INIT
+    }
+
+    /// Creates a new `Once` value.
+    #[cfg(not(feature = "const_fn"))]
+    pub fn new() -> Once<T> {
+        Self::INIT
     }
 
     fn force_get<'a>(&'a self) -> &'a T {
@@ -263,5 +273,15 @@ mod tests {
             INIT.call_once(|| {});
         });
         assert!(t.is_err());
+    }
+
+    #[test]
+    fn init_constant() {
+        static O: Once<()> = Once::INIT;
+        let mut a = 0;
+        O.call_once(|| a += 1);
+        assert_eq!(a, 1);
+        O.call_once(|| a += 1);
+        assert_eq!(a, 1);
     }
 }
