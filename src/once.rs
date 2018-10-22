@@ -18,6 +18,7 @@ use core::sync::atomic::{AtomicUsize, Ordering, spin_loop_hint as cpu_relax};
 ///     // run initialization here
 /// });
 /// ```
+#[derive(Debug)]
 pub struct Once<T> {
     state: AtomicUsize,
     data: UnsafeCell<Option<T>>, // TODO remove option and use mem::uninitialized

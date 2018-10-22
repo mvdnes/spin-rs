@@ -52,6 +52,7 @@ pub struct RwLock<T: ?Sized>
 ///
 /// When the guard falls out of scope it will decrement the read count,
 /// potentially releasing the lock.
+#[derive(Debug)]
 pub struct RwLockReadGuard<'a, T: 'a + ?Sized>
 {
     lock: &'a AtomicUsize,
@@ -61,6 +62,7 @@ pub struct RwLockReadGuard<'a, T: 'a + ?Sized>
 /// A guard to which the protected data can be written
 ///
 /// When the guard falls out of scope it will release the lock.
+#[derive(Debug)]
 pub struct RwLockWriteGuard<'a, T: 'a + ?Sized>
 {
     lock: &'a AtomicUsize,
