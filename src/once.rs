@@ -1,5 +1,6 @@
 use core::cell::UnsafeCell;
 use core::sync::atomic::{AtomicUsize, Ordering, spin_loop_hint as cpu_relax};
+use core::fmt;
 
 /// A synchronization primitive which can be used to run a one-time global
 /// initialization. Unlike its std equivalent, this is generalized so that The
@@ -18,10 +19,18 @@ use core::sync::atomic::{AtomicUsize, Ordering, spin_loop_hint as cpu_relax};
 ///     // run initialization here
 /// });
 /// ```
-#[derive(Debug)]
 pub struct Once<T> {
     state: AtomicUsize,
     data: UnsafeCell<Option<T>>, // TODO remove option and use mem::uninitialized
+}
+
+impl<T: fmt::Debug> fmt::Debug for Once<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.try() {
+            Some(s) => write!(f, "Once {{ data: {:?} }}", s),
+            None => write!(f, "Once {{ <uninitialized> }}")
+        }
+    }
 }
 
 // Same unsafe impls as `std::sync::RwLock`, because this also allows for
