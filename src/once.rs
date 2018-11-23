@@ -27,7 +27,9 @@ pub struct Once<T> {
 impl<T: fmt::Debug> fmt::Debug for Once<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.try() {
-            Some(s) => write!(f, "Once {{ data: {:?} }}", s),
+            Some(s) => write!(f, "Once {{ data: ")
+				.and_then(|()| s.fmt(f))
+				.and_then(|()| write!(f, "}}")),
             None => write!(f, "Once {{ <uninitialized> }}")
         }
     }
