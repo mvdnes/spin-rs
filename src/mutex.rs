@@ -226,7 +226,9 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for Mutex<T>
     {
         match self.try_lock()
         {
-            Some(guard) => write!(f, "Mutex {{ data: {:?} }}", &*guard),
+            Some(guard) => write!(f, "Mutex {{ data: ")
+				.and_then(|()| (&*guard).fmt(f))
+				.and_then(|()| write!(f, "}}")),
             None => write!(f, "Mutex {{ <locked> }}"),
         }
     }
