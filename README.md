@@ -15,8 +15,6 @@ Usage
 By default this crate only works on nightly but you can disable the default features
 if you want to run on stable. Nightly is more efficient than stable currently.
 
-Also, `Once` is only available on nightly as it is only useful when `const_fn` is available.
-
 Include the following code in your Cargo.toml
 
 ```toml

@@ -10,7 +10,6 @@ use core::fmt;
 /// # Examples
 ///
 /// ```
-/// #![feature(const_fn)]
 /// use spin;
 ///
 /// static START: spin::Once<()> = spin::Once::new();
@@ -57,14 +56,7 @@ impl<T> Once<T> {
     };
 
     /// Creates a new `Once` value.
-    #[cfg(feature = "const_fn")]
     pub const fn new() -> Once<T> {
-        Self::INIT
-    }
-
-    /// Creates a new `Once` value.
-    #[cfg(not(feature = "const_fn"))]
-    pub fn new() -> Once<T> {
         Self::INIT
     }
 
@@ -90,7 +82,6 @@ impl<T> Once<T> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(const_fn)]
     /// use spin;
     ///
     /// static INIT: spin::Once<usize> = spin::Once::new();

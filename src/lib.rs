@@ -3,8 +3,6 @@
 
 //! Synchronization primitives based on spinning
 
-#![cfg_attr(feature = "const_fn", feature(const_fn))]
-
 #![no_std]
 
 #[cfg(test)]

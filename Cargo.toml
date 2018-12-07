@@ -16,7 +16,5 @@ and static initializers are available.
 """
 
 [features]
-const_fn = []
 once = []
-unstable = ["const_fn", "once"]
-default = ["unstable"]
+default = ["once"]
