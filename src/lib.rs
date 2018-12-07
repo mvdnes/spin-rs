@@ -11,12 +11,8 @@ extern crate std;
 
 pub use mutex::*;
 pub use rw_lock::*;
-
-#[cfg(feature = "once")]
 pub use once::*;
 
 mod mutex;
 mod rw_lock;
-
-#[cfg(feature = "once")]
 mod once;

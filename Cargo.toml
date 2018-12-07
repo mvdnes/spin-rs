@@ -10,11 +10,6 @@ documentation = "https://mvdnes.github.io/rust-docs/spin-rs/spin/index.html"
 keywords = ["spinlock", "mutex", "rwlock"]
 description = """
 Synchronization primitives based on spinning.
-They may contain data,
-They are usable without `std`
+They may contain data, they are usable without `std`,
 and static initializers are available.
 """
-
-[features]
-once = []
-default = ["once"]
