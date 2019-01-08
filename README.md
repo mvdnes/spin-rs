@@ -3,25 +3,19 @@ spin-rs
 
 [![Build Status](https://travis-ci.org/mvdnes/spin-rs.svg)](https://travis-ci.org/mvdnes/spin-rs)
 [![Crates.io version](https://img.shields.io/crates/v/spin.svg)](https://crates.io/crates/spin)
-
-[Documentation](https://mvdnes.github.io/rust-docs/spin-rs/spin/index.html)
+[![docs.rs](https://docs.rs/spin/badge.svg)](https://docs.rs/spin/)
 
 This Rust library implements a simple
-[spinlock](https://en.wikipedia.org/wiki/Spinlock).
+[spinlock](https://en.wikipedia.org/wiki/Spinlock), and is safe for `#[no_std]` environments.
 
 Usage
 -----
-
-By default this crate only works on nightly but you can disable the default features
-if you want to run on stable. Nightly is more efficient than stable currently.
 
 Include the following code in your Cargo.toml
 
 ```toml
 [dependencies.spin]
-version = "0.4"
-# If you want to run on stable you will need to add the following:
-# default-features = false
+version = "0.5"
 ```
 
 Example
