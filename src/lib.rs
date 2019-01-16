@@ -61,11 +61,13 @@ use core::sync::atomic::spin_loop_hint as relax;
 #[cfg(feature = "std")]
 use std::thread::yield_now as relax;
 
+pub mod barrier;
 pub mod lazy;
 pub mod mutex;
 pub mod once;
 pub mod rw_lock;
 
+pub use barrier::Barrier;
 pub use lazy::Lazy;
 pub use mutex::{Mutex, MutexGuard};
 pub use once::Once;
