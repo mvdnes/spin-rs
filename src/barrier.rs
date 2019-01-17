@@ -81,7 +81,7 @@ impl Barrier {
     ///
     /// let barrier = spin::Barrier::new(10);
     /// ```
-    pub fn new(n: usize) -> Barrier {
+    pub const fn new(n: usize) -> Barrier {
         Barrier {
             lock: Mutex::new(BarrierState {
                 count: 0,
