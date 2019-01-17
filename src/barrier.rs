@@ -133,18 +133,22 @@ impl Barrier {
         let local_gen = lock.generation_id;
         lock.count += 1;
 
-        while local_gen == lock.generation_id &&
-            lock.count < self.num_threads {
-            drop(lock);
-            cpu_relax();
-            lock = self.lock.lock();
-        }
-
-        if local_gen == lock.generation_id {
-            lock.generation_id = local_gen + 1;
-            return BarrierWaitResult(true);
-        } else {
+        if lock.count < self.num_threads {
+            // not the leader
+            while local_gen == lock.generation_id &&
+                lock.count < self.num_threads {
+                drop(lock);
+                cpu_relax();
+                lock = self.lock.lock();
+            }
+            lock.count -= 1;
             return BarrierWaitResult(false);
+        } else {
+            // this thread is the leader,
+            //   and is responsible for incrementing the generation
+            lock.generation_id = local_gen + 1;
+            lock.count -= 1;
+            return BarrierWaitResult(true);
         }
     }
 }
@@ -179,14 +183,10 @@ mod tests {
 
     use super::Barrier;
 
-    #[test]
-    fn test_barrier() {
-        const N: usize = 10;
-
-        let barrier = Arc::new(Barrier::new(N));
+    fn use_barrier(n: usize, barrier: Arc<Barrier>) {
         let (tx, rx) = channel();
 
-        for _ in 0..N - 1 {
+        for _ in 0..n - 1 {
             let c = barrier.clone();
             let tx = tx.clone();
             thread::spawn(move|| {
@@ -204,12 +204,24 @@ mod tests {
         let mut leader_found = barrier.wait().is_leader();
 
         // Now, the barrier is cleared and we should get data.
-        for _ in 0..N - 1 {
+        for _ in 0..n - 1 {
             if rx.recv().unwrap() {
                 assert!(!leader_found);
                 leader_found = true;
             }
         }
         assert!(leader_found);
+    }
+
+    #[test]
+    fn test_barrier() {
+        const N: usize = 10;
+
+        let barrier = Arc::new(Barrier::new(N));
+
+        use_barrier(N, barrier.clone());
+
+        // use barrier twice to ensure it is reusable
+        use_barrier(N, barrier.clone());
     }
 }
