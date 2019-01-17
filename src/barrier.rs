@@ -130,24 +130,24 @@ impl Barrier {
     /// ```
     pub fn wait(&self) -> BarrierWaitResult {
         let mut lock = self.lock.lock();
-        let local_gen = lock.generation_id;
         lock.count += 1;
 
         if lock.count < self.num_threads {
             // not the leader
+            let local_gen = lock.generation_id;
+
             while local_gen == lock.generation_id &&
                 lock.count < self.num_threads {
                 drop(lock);
                 cpu_relax();
                 lock = self.lock.lock();
             }
-            lock.count -= 1;
             return BarrierWaitResult(false);
         } else {
             // this thread is the leader,
             //   and is responsible for incrementing the generation
-            lock.generation_id = local_gen + 1;
-            lock.count -= 1;
+            lock.count = 0;
+            lock.generation_id = lock.generation_id.wrapping_add(1);
             return BarrierWaitResult(true);
         }
     }
