@@ -3,9 +3,9 @@ use core::sync::atomic::{AtomicUsize, Ordering, spin_loop_hint as cpu_relax};
 use core::fmt;
 
 /// A synchronization primitive which can be used to run a one-time global
-/// initialization. Unlike its std equivalent, this is generalized so that The
+/// initialization. Unlike its std equivalent, this is generalized so that the
 /// closure returns a value and it is stored. Once therefore acts something like
-/// 1a future, too.
+/// a future, too.
 ///
 /// # Examples
 ///
@@ -77,7 +77,7 @@ impl<T> Once<T> {
     /// When this function returns, it is guaranteed that some initialization
     /// has run and completed (it may not be the closure specified). The
     /// returned pointer will point to the result from the closure that was
-    /// ran.
+    /// run.
     ///
     /// # Examples
     ///
@@ -113,7 +113,7 @@ impl<T> Once<T> {
                 status = COMPLETE;
                 self.state.store(status, Ordering::SeqCst);
 
-                // This next line is strictly an optomization
+                // This next line is strictly an optimization
                 return self.force_get();
             }
         }
