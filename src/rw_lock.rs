@@ -48,7 +48,7 @@ pub struct RwLock<T: ?Sized>
     data: UnsafeCell<T>,
 }
 
-/// A guard to which the protected data can be read
+/// A guard from which the protected data can be read
 ///
 /// When the guard falls out of scope it will decrement the read count,
 /// potentially releasing the lock.
