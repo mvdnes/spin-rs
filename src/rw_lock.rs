@@ -1,4 +1,4 @@
-use core::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT, spin_loop_hint as cpu_relax};
+use core::sync::atomic::{AtomicUsize, Ordering, spin_loop_hint as cpu_relax};
 use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
 use core::fmt;
@@ -97,7 +97,7 @@ impl<T> RwLock<T>
     {
         RwLock
         {
-            lock: ATOMIC_USIZE_INIT,
+            lock: AtomicUsize::new(0),
             data: UnsafeCell::new(user_data),
         }
     }
