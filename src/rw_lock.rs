@@ -4,6 +4,7 @@ use core::fmt;
 use core::mem;
 use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
+use core::marker::PhantomData;
 use core::sync::atomic::{spin_loop_hint as cpu_relax, AtomicUsize, Ordering};
 
 /// A reader-writer lock
@@ -76,6 +77,8 @@ pub struct RwLockReadGuard<'a, T: 'a + ?Sized> {
 pub struct RwLockWriteGuard<'a, T: 'a + ?Sized> {
     lock: &'a AtomicUsize,
     data: NonNull<T>,
+    #[doc(hidden)]
+    _invariant: PhantomData<&'a mut T>,
 }
 
 /// A guard from which the protected data can be read, and can be upgraded
@@ -90,6 +93,8 @@ pub struct RwLockWriteGuard<'a, T: 'a + ?Sized> {
 pub struct RwLockUpgradeableGuard<'a, T: 'a + ?Sized> {
     lock: &'a AtomicUsize,
     data: NonNull<T>,
+    #[doc(hidden)]
+    _invariant: PhantomData<&'a mut T>,
 }
 
 // Same unsafe impls as `std::sync::RwLock`
@@ -257,6 +262,7 @@ impl<T: ?Sized> RwLock<T> {
                 return RwLockWriteGuard {
                     lock: &self.lock,
                     data: unsafe { NonNull::new_unchecked(self.data.get()) },
+                    _invariant: PhantomData,
                 };
             } else {
                 cpu_relax();
@@ -293,6 +299,7 @@ impl<T: ?Sized> RwLock<T> {
             Some(RwLockWriteGuard {
                 lock: &self.lock,
                 data: unsafe { NonNull::new_unchecked(self.data.get()) },
+                _invariant: PhantomData,
             })
         } else {
             None
@@ -318,6 +325,7 @@ impl<T: ?Sized> RwLock<T> {
             Some(RwLockUpgradeableGuard {
                 lock: &self.lock,
                 data: unsafe { NonNull::new_unchecked(self.data.get()) },
+                _invariant: PhantomData,
             })
         } else {
             // We can't unflip the UPGRADED bit back just yet as there is another upgradeable or write lock.
@@ -367,6 +375,7 @@ impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
                 let out = RwLockWriteGuard {
                     lock: self.lock,
                     data: self.data,
+                    _invariant: PhantomData,
                 };
 
                 // Forget the old guard so its destructor doesn't run
@@ -401,6 +410,7 @@ impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
             let out = Ok(RwLockWriteGuard {
                 lock: &self.lock,
                 data: self.data,
+                _invariant: PhantomData,
             });
 
             // Forget the old guard so its destructor doesn't run
