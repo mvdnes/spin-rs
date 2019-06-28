@@ -56,8 +56,8 @@ pub struct RwLock<T: ?Sized> {
     data: UnsafeCell<T>,
 }
 
-const READER: usize = 4;
-const UPGRADED: usize = 2;
+const READER: usize = 1 << 2;
+const UPGRADED: usize = 1 << 1;
 const WRITER: usize = 1;
 
 /// A guard from which the protected data can be read
