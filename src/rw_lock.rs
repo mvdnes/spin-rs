@@ -1,10 +1,10 @@
 use core::cell::UnsafeCell;
 use core::default::Default;
 use core::fmt;
+use core::marker::PhantomData;
 use core::mem;
 use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
-use core::marker::PhantomData;
 use core::sync::atomic::{spin_loop_hint as cpu_relax, AtomicUsize, Ordering};
 
 /// A reader-writer lock
@@ -231,6 +231,28 @@ impl<T: ?Sized> RwLock<T> {
         self.lock.fetch_and(!(WRITER | UPGRADED), Ordering::Release);
     }
 
+    #[inline(always)]
+    fn try_write_internal(&self, strong: bool) -> Option<RwLockWriteGuard<T>> {
+        if compare_exchange(
+            &self.lock,
+            0,
+            WRITER,
+            Ordering::Acquire,
+            Ordering::Relaxed,
+            strong,
+        )
+        .is_ok()
+        {
+            Some(RwLockWriteGuard {
+                lock: &self.lock,
+                data: unsafe { NonNull::new_unchecked(self.data.get()) },
+                _invariant: PhantomData,
+            })
+        } else {
+            None
+        }
+    }
+
     /// Lock this rwlock with exclusive write access, blocking the current
     /// thread until it can be acquired.
     ///
@@ -252,20 +274,9 @@ impl<T: ?Sized> RwLock<T> {
     #[inline]
     pub fn write(&self) -> RwLockWriteGuard<T> {
         loop {
-            // Use compare_exchange_weak as a slight optimisation instead of just calling try_write which
-            // uses compare_exchange (strong) internally.
-            if self
-                .lock
-                .compare_exchange_weak(0, WRITER, Ordering::Acquire, Ordering::Relaxed)
-                .is_ok()
-            {
-                return RwLockWriteGuard {
-                    lock: &self.lock,
-                    data: unsafe { NonNull::new_unchecked(self.data.get()) },
-                    _invariant: PhantomData,
-                };
-            } else {
-                cpu_relax();
+            match self.try_write_internal(false) {
+                Some(guard) => return guard,
+                None => cpu_relax(),
             }
         }
     }
@@ -291,19 +302,7 @@ impl<T: ?Sized> RwLock<T> {
     /// ```
     #[inline]
     pub fn try_write(&self) -> Option<RwLockWriteGuard<T>> {
-        if self
-            .lock
-            .compare_exchange(0, WRITER, Ordering::Acquire, Ordering::Relaxed)
-            .is_ok()
-        {
-            Some(RwLockWriteGuard {
-                lock: &self.lock,
-                data: unsafe { NonNull::new_unchecked(self.data.get()) },
-                _invariant: PhantomData,
-            })
-        } else {
-            None
-        }
+        self.try_write_internal(false)
     }
 
     /// Obtain a readable lock guard that can later be upgraded to a writable lock guard.
@@ -353,6 +352,34 @@ impl<T: ?Sized + Default> Default for RwLock<T> {
 }
 
 impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
+    #[inline(always)]
+    fn try_upgrade_internal(self, strong: bool) -> Result<RwLockWriteGuard<'rwlock, T>, Self> {
+        if compare_exchange(
+            &self.lock,
+            UPGRADED,
+            WRITER,
+            Ordering::Acquire,
+            Ordering::Relaxed,
+            strong,
+        )
+        .is_ok()
+        {
+            // Upgrade successful
+            let out = Ok(RwLockWriteGuard {
+                lock: &self.lock,
+                data: self.data,
+                _invariant: PhantomData,
+            });
+
+            // Forget the old guard so its destructor doesn't run
+            mem::forget(self);
+
+            out
+        } else {
+            Err(self)
+        }
+    }
+
     /// Upgrades an upgradeable lock guard to a writable lock guard.
     ///
     /// ```
@@ -362,27 +389,12 @@ impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
     /// let writable = upgradeable.upgrade();
     /// ```
     #[inline]
-    pub fn upgrade(self) -> RwLockWriteGuard<'rwlock, T> {
+    pub fn upgrade(mut self) -> RwLockWriteGuard<'rwlock, T> {
         loop {
-            // Use compare_exchange_weak as a slight optimisation instead of just calling try_upgrade which
-            // uses compare_exchange (strong) internally.
-            if self
-                .lock
-                .compare_exchange_weak(UPGRADED, WRITER, Ordering::Acquire, Ordering::Relaxed)
-                .is_ok()
-            {
-                // Upgrade successful
-                let out = RwLockWriteGuard {
-                    lock: self.lock,
-                    data: self.data,
-                    _invariant: PhantomData,
-                };
-
-                // Forget the old guard so its destructor doesn't run
-                mem::forget(self);
-
-                return out;
-            }
+            self = match self.try_upgrade_internal(false) {
+                Ok(guard) => return guard,
+                Err(e) => e,
+            };
 
             cpu_relax();
         }
@@ -401,25 +413,7 @@ impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
     /// ```
     #[inline]
     pub fn try_upgrade(self) -> Result<RwLockWriteGuard<'rwlock, T>, Self> {
-        if self
-            .lock
-            .compare_exchange(UPGRADED, WRITER, Ordering::Acquire, Ordering::Relaxed)
-            .is_ok()
-        {
-            // Upgrade successful
-            let out = Ok(RwLockWriteGuard {
-                lock: &self.lock,
-                data: self.data,
-                _invariant: PhantomData,
-            });
-
-            // Forget the old guard so its destructor doesn't run
-            mem::forget(self);
-
-            out
-        } else {
-            Err(self)
-        }
+        self.try_upgrade_internal(true)
     }
 
     #[inline]
@@ -530,6 +524,22 @@ impl<'rwlock, T: ?Sized> Drop for RwLockWriteGuard<'rwlock, T> {
         // Writer is responsible for clearing both WRITER and UPGRADED bits.
         // The UPGRADED bit may be set if an upgradeable lock attempts an upgrade while this lock is held.
         self.lock.fetch_and(!(WRITER | UPGRADED), Ordering::Release);
+    }
+}
+
+#[inline(always)]
+fn compare_exchange(
+    atomic: &AtomicUsize,
+    current: usize,
+    new: usize,
+    success: Ordering,
+    failure: Ordering,
+    strong: bool,
+) -> Result<usize, usize> {
+    if strong {
+        atomic.compare_exchange(current, new, success, failure)
+    } else {
+        atomic.compare_exchange_weak(current, new, success, failure)
     }
 }
 
