@@ -302,7 +302,7 @@ impl<T: ?Sized> RwLock<T> {
     /// ```
     #[inline]
     pub fn try_write(&self) -> Option<RwLockWriteGuard<T>> {
-        self.try_write_internal(false)
+        self.try_write_internal(true)
     }
 
     /// Obtain a readable lock guard that can later be upgraded to a writable lock guard.
