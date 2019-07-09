@@ -28,6 +28,11 @@ use core::sync::atomic::{spin_loop_hint as cpu_relax, AtomicUsize, Ordering};
 ///
 /// Based on Facebook's
 /// [`folly/RWSpinLock.h`](https://github.com/facebook/folly/blob/a0394d84f2d5c3e50ebfd0566f9d3acb52cfab5a/folly/synchronization/RWSpinLock.h).
+/// This implementation is unfair to writers - if the lock always has readers, then no writers will
+/// ever get a chance. Using an upgradeable lock guard can *somewhat* alleviate this issue as no
+/// new readers are allowed when an upgradeable guard is held, but upgradeable guards can be taken
+/// when there are existing readers. However if the lock is that highly contended and writes are
+/// crucial then this implementation may be a poor choice.
 ///
 /// # Examples
 ///
