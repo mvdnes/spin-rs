@@ -337,6 +337,24 @@ impl<T: ?Sized> RwLock<T> {
             None
         }
     }
+
+   /// Returns a mutable reference to the underlying data.
+   ///
+   /// Since this call borrows the `RwLock` mutably, no actual locking needs to
+   /// take place -- the mutable borrow statically guarantees no locks exist.
+   ///
+   /// # Examples
+   ///
+   /// ```
+   /// let mut lock = spin::RwLock::new(0);
+   /// *lock.get_mut() = 10;
+   /// assert_eq!(*lock.read(), 10);
+   /// ```
+    pub fn get_mut(&mut self) -> &mut T {
+        // We know statically that there are no other references to `self`, so
+        // there's no need to lock the inner lock.
+        unsafe { &mut *self.data.get() }
+    }
 }
 
 impl<T: ?Sized + fmt::Debug> fmt::Debug for RwLock<T> {

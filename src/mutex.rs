@@ -192,6 +192,24 @@ impl<T: ?Sized> Mutex<T>
             None
         }
     }
+
+    /// Returns a mutable reference to the underlying data.
+    ///
+    /// Since this call borrows the `Mutex` mutably, no actual locking needs to
+    /// take place -- the mutable borrow statically guarantees no locks exist.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut my_lock = spin::Mutex::new(0);
+    /// *my_lock.get_mut() = 10;
+    /// assert_eq!(*my_lock.lock(), 10);
+    /// ```
+    pub fn get_mut(&mut self) -> &mut T {
+        // We know statically that there are no other references to `self`, so
+        // there's no need to lock the inner mutex.
+        unsafe { &mut *self.data.get() }
+    }
 }
 
 impl<T: ?Sized + fmt::Debug> fmt::Debug for Mutex<T>
