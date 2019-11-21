@@ -1,3 +1,5 @@
+**Unfortunately, due to a lack of time and loss of interest, this project will no longer be actively maintained.**
+
 spin-rs
 ===========
 
