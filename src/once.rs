@@ -1,4 +1,5 @@
 use core::cell::UnsafeCell;
+use core::mem::MaybeUninit;
 use core::sync::atomic::{AtomicUsize, Ordering, spin_loop_hint as cpu_relax};
 use core::fmt;
 
@@ -20,7 +21,7 @@ use core::fmt;
 /// ```
 pub struct Once<T> {
     state: AtomicUsize,
-    data: UnsafeCell<Option<T>>, // TODO remove option and use mem::uninitialized
+    data: UnsafeCell<MaybeUninit<T>>,
 }
 
 impl<T: fmt::Debug> fmt::Debug for Once<T> {
@@ -52,7 +53,7 @@ impl<T> Once<T> {
     /// Initialization constant of `Once`.
     pub const INIT: Self = Once {
         state: AtomicUsize::new(INCOMPLETE),
-        data: UnsafeCell::new(None),
+        data: UnsafeCell::new(MaybeUninit::uninit()),
     };
 
     /// Creates a new `Once` value.
@@ -60,10 +61,13 @@ impl<T> Once<T> {
         Self::INIT
     }
 
+    /// Get a reference to the initialized instance. Must only be called once COMPLETE.
     fn force_get<'a>(&'a self) -> &'a T {
-        match unsafe { &*self.data.get() }.as_ref() {
-            None    => unsafe { unreachable() },
-            Some(p) => p,
+        unsafe {
+            // SAFETY: 
+            // * `UnsafeCell`/inner deref: data never changes again
+            // * `MaybeUninit`/outer deref: data was initialized
+            &*(*self.data.get()).as_ptr()
         }
     }
 
@@ -107,7 +111,13 @@ impl<T> Once<T> {
             if status == INCOMPLETE { // We init
                 // We use a guard (Finish) to catch panics caused by builder
                 let mut finish = Finish { state: &self.state, panicked: true };
-                unsafe { *self.data.get() = Some(builder()) };
+                unsafe { 
+                    // SAFETY:
+                    // `UnsafeCell`/deref: currently the only accessor, mutably
+                    // and immutably by cas exclusion.
+                    // `write`: pointer comes from `MaybeUninit`.
+                    (*self.data.get()).as_mut_ptr().write(builder())
+                };
                 finish.panicked = false;
 
                 status = COMPLETE;
