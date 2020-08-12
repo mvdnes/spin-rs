@@ -82,8 +82,10 @@ pub struct Mutex<T: ?Sized>
 pub struct MutexGuard<'a, T: ?Sized + 'a>
 {
     lock: &'a AtomicBool,
-    data: &'a mut T,
+    data: *mut T,
 }
+
+unsafe impl<T: ?Sized + Sync> Sync for MutexGuard<'_, T> {}
 
 // Same unsafe impls as `std::sync::Mutex`
 unsafe impl<T: ?Sized + Send> Sync for Mutex<T> {}
@@ -159,7 +161,7 @@ impl<T: ?Sized> Mutex<T>
         MutexGuard
         {
             lock: &self.lock,
-            data: unsafe { &mut *self.data.get() },
+            data: self.data.get(),
         }
     }
 
@@ -183,7 +185,7 @@ impl<T: ?Sized> Mutex<T>
             Some(
                 MutexGuard {
                     lock: &self.lock,
-                    data: unsafe { &mut *self.data.get() },
+                    data: self.data.get(),
                 }
             )
         }
@@ -235,12 +237,12 @@ impl<T: ?Sized + Default> Default for Mutex<T> {
 impl<'a, T: ?Sized> Deref for MutexGuard<'a, T>
 {
     type Target = T;
-    fn deref<'b>(&'b self) -> &'b T { &*self.data }
+    fn deref<'b>(&'b self) -> &'b T { unsafe { &*self.data } }
 }
 
 impl<'a, T: ?Sized> DerefMut for MutexGuard<'a, T>
 {
-    fn deref_mut<'b>(&'b mut self) -> &'b mut T { &mut *self.data }
+    fn deref_mut<'b>(&'b mut self) -> &'b mut T { unsafe { &mut *self.data } }
 }
 
 impl<'a, T: ?Sized> Drop for MutexGuard<'a, T>
