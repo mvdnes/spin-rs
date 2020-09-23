@@ -91,8 +91,7 @@ pub struct RwLockWriteGuard<'a, T: 'a + ?Sized> {
 }
 
 // These are safe because access to the inner data is determined by the atomic and is not dependent on the thread model
-unsafe impl<'a, T: ?Sized> Send for RwLockWriteGuard<'a, T> where &'a T: Send {}
-unsafe impl<'a, T: ?Sized> Sync for RwLockWriteGuard<'a, T> where &'a T: Sync {}
+unsafe impl<'a, T: ?Sized> Send for RwLockWriteGuard<'a, T> where &'a mut T: Send {}
 
 /// A guard from which the protected data can be read, and can be upgraded
 /// to a writable guard if needed

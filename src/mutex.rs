@@ -86,8 +86,7 @@ pub struct MutexGuard<'a, T: ?Sized + 'a>
 }
 
 // These are safe because access to the inner data is determined by the atomic and is not dependent on the thread model
-unsafe impl<'a, T: ?Sized> Send for MutexGuard<'a, T> where &'a T: Send {}
-unsafe impl<'a, T: ?Sized> Sync for MutexGuard<'a, T> where &'a T: Send {}
+unsafe impl<'a, T: ?Sized> Send for MutexGuard<'a, T> where &'a mut T: Send {}
 
 // Same unsafe impls as `std::sync::Mutex`
 unsafe impl<T: ?Sized + Send> Sync for Mutex<T> {}
