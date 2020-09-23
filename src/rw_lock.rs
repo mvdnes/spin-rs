@@ -400,10 +400,9 @@ impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
         )
         .is_ok()
         {
-            // Forget the old guard so its destructor doesn't run
             let inner = self.inner;
 
-            // Drop old reference before mutably aliasing data below
+            // Forget the old guard so its destructor doesn't run (before mutably aliasing data below)
             mem::forget(self);
 
             // Upgrade successful
@@ -508,6 +507,33 @@ impl<'rwlock, T: ?Sized> RwLockWriteGuard<'rwlock, T> {
         mem::drop(self);
 
         RwLockReadGuard {
+            inner,
+            data: unsafe { &*inner.data.get() },
+        }
+    }
+
+    /// Downgrades the writable lock guard to an upgradable, shared lock guard. Cannot fail and is guaranteed not to spin.
+    ///
+    /// ```
+    /// let mylock = spin::RwLock::new(0);
+    ///
+    /// let mut writable = mylock.write();
+    /// *writable = 1;
+    ///
+    /// let readable = writable.downgrade_to_upgradeable(); // This is guaranteed not to spin
+    /// assert_eq!(*readable, 1);
+    /// ```
+    #[inline]
+    pub fn downgrade_to_upgradeable(self) -> RwLockUpgradeableGuard<'rwlock, T> {
+        // Reserve the read guard for ourselves
+        self.inner.lock.store(UPGRADED, Ordering::Release);
+
+        let inner = self.inner;
+
+        // Dropping self removes the UPGRADED bit
+        mem::forget(self);
+
+        RwLockUpgradeableGuard {
             inner,
             data: unsafe { &*inner.data.get() },
         }
@@ -665,6 +691,36 @@ unsafe impl lock_api::RawRwLockUpgrade for RwLock<()> {
             data: &(),
         };
         tmp_guard.try_upgrade().map(|g| core::mem::forget(g)).is_ok()
+    }
+}
+
+#[cfg(feature = "lock_api1")]
+unsafe impl lock_api::RawRwLockDowngrade for RwLock<()> {
+    unsafe fn downgrade(&self) {
+        let tmp_guard = RwLockWriteGuard {
+            inner: self,
+            data: &mut (),
+        };
+        core::mem::forget(tmp_guard.downgrade());
+    }
+}
+
+#[cfg(feature = "lock_api1")]
+unsafe impl lock_api::RawRwLockUpgradeDowngrade for RwLock<()> {
+    unsafe fn downgrade_upgradable(&self) {
+        let tmp_guard = RwLockUpgradeableGuard {
+            inner: self,
+            data: &(),
+        };
+        core::mem::forget(tmp_guard.downgrade());
+    }
+
+    unsafe fn downgrade_to_upgradable(&self) {
+        let tmp_guard = RwLockWriteGuard {
+            inner: self,
+            data: &mut (),
+        };
+        core::mem::forget(tmp_guard.downgrade_to_upgradeable());
     }
 }
 
