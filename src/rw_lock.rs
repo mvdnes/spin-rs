@@ -1,11 +1,10 @@
-use core::cell::UnsafeCell;
-use core::default::Default;
-use core::fmt;
-use core::marker::PhantomData;
-use core::mem;
-use core::ops::{Deref, DerefMut};
-use core::ptr::NonNull;
-use core::sync::atomic::{spin_loop_hint as cpu_relax, AtomicUsize, Ordering};
+use core::{
+    cell::UnsafeCell,
+    ops::{Deref, DerefMut},
+    sync::atomic::{spin_loop_hint as cpu_relax, AtomicUsize, Ordering},
+    fmt,
+    mem,
+};
 
 /// A reader-writer lock
 ///
@@ -71,27 +70,18 @@ const WRITER: usize = 1;
 /// potentially releasing the lock.
 #[derive(Debug)]
 pub struct RwLockReadGuard<'a, T: 'a + ?Sized> {
-    lock: &'a AtomicUsize,
-    data: NonNull<T>,
+    inner: &'a RwLock<T>,
+    data: &'a T,
 }
-
-// These are safe because access to the inner data is determined by the atomic and is not dependent on the thread model
-unsafe impl<'a, T: ?Sized> Send for RwLockReadGuard<'a, T> where &'a T: Send {}
-unsafe impl<'a, T: ?Sized> Sync for RwLockReadGuard<'a, T> where &'a T: Sync {}
 
 /// A guard to which the protected data can be written
 ///
 /// When the guard falls out of scope it will release the lock.
 #[derive(Debug)]
 pub struct RwLockWriteGuard<'a, T: 'a + ?Sized> {
-    lock: &'a AtomicUsize,
-    data: NonNull<T>,
-    #[doc(hidden)]
-    _invariant: PhantomData<&'a mut T>,
+    inner: &'a RwLock<T>,
+    data: &'a mut T,
 }
-
-// These are safe because access to the inner data is determined by the atomic and is not dependent on the thread model
-unsafe impl<'a, T: ?Sized> Send for RwLockWriteGuard<'a, T> where &'a mut T: Send {}
 
 /// A guard from which the protected data can be read, and can be upgraded
 /// to a writable guard if needed
@@ -103,15 +93,9 @@ unsafe impl<'a, T: ?Sized> Send for RwLockWriteGuard<'a, T> where &'a mut T: Sen
 /// When the guard falls out of scope it will release the lock.
 #[derive(Debug)]
 pub struct RwLockUpgradeableGuard<'a, T: 'a + ?Sized> {
-    lock: &'a AtomicUsize,
-    data: NonNull<T>,
-    #[doc(hidden)]
-    _invariant: PhantomData<&'a mut T>,
+    inner: &'a RwLock<T>,
+    data: &'a T,
 }
-
-// These are safe because access to the inner data is determined by the atomic and is not dependent on the thread model
-unsafe impl<'a, T: ?Sized> Send for RwLockUpgradeableGuard<'a, T> where &'a T: Send {}
-unsafe impl<'a, T: ?Sized> Sync for RwLockUpgradeableGuard<'a, T> where &'a T: Sync {}
 
 // Same unsafe impls as `std::sync::RwLock`
 unsafe impl<T: ?Sized + Send> Send for RwLock<T> {}
@@ -217,8 +201,8 @@ impl<T: ?Sized> RwLock<T> {
             None
         } else {
             Some(RwLockReadGuard {
-                lock: &self.lock,
-                data: unsafe { NonNull::new_unchecked(self.data.get()) },
+                inner: self,
+                data: unsafe { &*self.data.get() },
             })
         }
     }
@@ -280,9 +264,8 @@ impl<T: ?Sized> RwLock<T> {
         .is_ok()
         {
             Some(RwLockWriteGuard {
-                lock: &self.lock,
-                data: unsafe { NonNull::new_unchecked(self.data.get()) },
-                _invariant: PhantomData,
+                inner: self,
+                data: unsafe { &mut *self.data.get() },
             })
         } else {
             None
@@ -358,9 +341,8 @@ impl<T: ?Sized> RwLock<T> {
     pub fn try_upgradeable_read(&self) -> Option<RwLockUpgradeableGuard<T>> {
         if self.lock.fetch_or(UPGRADED, Ordering::Acquire) & (WRITER | UPGRADED) == 0 {
             Some(RwLockUpgradeableGuard {
-                lock: &self.lock,
-                data: unsafe { NonNull::new_unchecked(self.data.get()) },
-                _invariant: PhantomData,
+                inner: self,
+                data: unsafe { &*self.data.get() },
             })
         } else {
             // We can't unflip the UPGRADED bit back just yet as there is another upgradeable or write lock.
@@ -409,7 +391,7 @@ impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
     #[inline(always)]
     fn try_upgrade_internal(self, strong: bool) -> Result<RwLockWriteGuard<'rwlock, T>, Self> {
         if compare_exchange(
-            &self.lock,
+            &self.inner.lock,
             UPGRADED,
             WRITER,
             Ordering::Acquire,
@@ -420,9 +402,8 @@ impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
         {
             // Upgrade successful
             let out = Ok(RwLockWriteGuard {
-                lock: &self.lock,
-                data: self.data,
-                _invariant: PhantomData,
+                inner: self.inner,
+                data: unsafe { &mut *self.inner.data.get() },
             });
 
             // Forget the old guard so its destructor doesn't run
@@ -486,11 +467,11 @@ impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
     /// ```
     pub fn downgrade(self) -> RwLockReadGuard<'rwlock, T> {
         // Reserve the read guard for ourselves
-        self.lock.fetch_add(READER, Ordering::Acquire);
+        self.inner.lock.fetch_add(READER, Ordering::Acquire);
 
         RwLockReadGuard {
-            lock: &self.lock,
-            data: self.data,
+            inner: self.inner,
+            data: unsafe { &*self.inner.data.get() },
         }
 
         // Dropping self removes the UPGRADED bit
@@ -513,11 +494,11 @@ impl<'rwlock, T: ?Sized> RwLockWriteGuard<'rwlock, T> {
     #[inline]
     pub fn downgrade(self) -> RwLockReadGuard<'rwlock, T> {
         // Reserve the read guard for ourselves
-        self.lock.fetch_add(READER, Ordering::Acquire);
+        self.inner.lock.fetch_add(READER, Ordering::Acquire);
 
         RwLockReadGuard {
-            lock: &self.lock,
-            data: self.data,
+            inner: self.inner,
+            data: unsafe { &*self.inner.data.get() },
         }
 
         // Dropping self removes the WRITER bit
@@ -528,7 +509,7 @@ impl<'rwlock, T: ?Sized> Deref for RwLockReadGuard<'rwlock, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        unsafe { self.data.as_ref() }
+        self.data
     }
 }
 
@@ -536,7 +517,7 @@ impl<'rwlock, T: ?Sized> Deref for RwLockUpgradeableGuard<'rwlock, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        unsafe { self.data.as_ref() }
+        self.data
     }
 }
 
@@ -544,40 +525,40 @@ impl<'rwlock, T: ?Sized> Deref for RwLockWriteGuard<'rwlock, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        unsafe { self.data.as_ref() }
+        self.data
     }
 }
 
 impl<'rwlock, T: ?Sized> DerefMut for RwLockWriteGuard<'rwlock, T> {
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { self.data.as_mut() }
+        self.data
     }
 }
 
 impl<'rwlock, T: ?Sized> Drop for RwLockReadGuard<'rwlock, T> {
     fn drop(&mut self) {
-        debug_assert!(self.lock.load(Ordering::Relaxed) & !(WRITER | UPGRADED) > 0);
-        self.lock.fetch_sub(READER, Ordering::Release);
+        debug_assert!(self.inner.lock.load(Ordering::Relaxed) & !(WRITER | UPGRADED) > 0);
+        self.inner.lock.fetch_sub(READER, Ordering::Release);
     }
 }
 
 impl<'rwlock, T: ?Sized> Drop for RwLockUpgradeableGuard<'rwlock, T> {
     fn drop(&mut self) {
         debug_assert_eq!(
-            self.lock.load(Ordering::Relaxed) & (WRITER | UPGRADED),
+            self.inner.lock.load(Ordering::Relaxed) & (WRITER | UPGRADED),
             UPGRADED
         );
-        self.lock.fetch_sub(UPGRADED, Ordering::AcqRel);
+        self.inner.lock.fetch_sub(UPGRADED, Ordering::AcqRel);
     }
 }
 
 impl<'rwlock, T: ?Sized> Drop for RwLockWriteGuard<'rwlock, T> {
     fn drop(&mut self) {
-        debug_assert_eq!(self.lock.load(Ordering::Relaxed) & WRITER, WRITER);
+        debug_assert_eq!(self.inner.lock.load(Ordering::Relaxed) & WRITER, WRITER);
 
         // Writer is responsible for clearing both WRITER and UPGRADED bits.
         // The UPGRADED bit may be set if an upgradeable lock attempts an upgrade while this lock is held.
-        self.lock.fetch_and(!(WRITER | UPGRADED), Ordering::Release);
+        self.inner.lock.fetch_and(!(WRITER | UPGRADED), Ordering::Release);
     }
 }
 
