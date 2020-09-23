@@ -23,6 +23,15 @@ pub mod lock_api {
     /// `lock_api`-compatible version of [`crate::Mutex`].
     pub type Mutex<T> = lock_api::Mutex<crate::Mutex<()>, T>;
 
+    /// `lock_api`-compatible version of [`crate::MutexGuard`].
+    pub type MutexGuard<'a, T> = lock_api::MutexGuard<'a, crate::Mutex<()>, T>;
+
     /// `lock_api`-compatible version of [`crate::RwLock`].
     pub type RwLock<T> = lock_api::RwLock<crate::RwLock<()>, T>;
+
+    /// `lock_api`-compatible version of [`crate::RwLockWriteGuard`].
+    pub type RwLockWriteGuard<'a, T> = lock_api::RwLockWriteGuard<'a, crate::RwLock<()>, T>;
+
+    /// `lock_api`-compatible version of [`crate::RwLockReadGuard`].
+    pub type RwLockReadGuard<'a, T> = lock_api::RwLockReadGuard<'a, crate::RwLock<()>, T>;
 }
