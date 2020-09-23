@@ -578,6 +578,46 @@ fn compare_exchange(
     }
 }
 
+#[cfg(feature = "lock_api1")]
+unsafe impl lock_api::RawRwLock for RwLock<()> {
+    type GuardMarker = lock_api::GuardSend;
+
+    const INIT: Self = Self::new(());
+
+    fn lock_exclusive(&self) {
+        // Prevent guard destructor running
+        core::mem::forget(self.write());
+    }
+
+    fn try_lock_exclusive(&self) -> bool {
+        // Prevent guard destructor running
+        self.try_write().map(|g| core::mem::forget(g)).is_some()
+    }
+
+    unsafe fn unlock_exclusive(&self) {
+        debug_assert_eq!(self.lock.load(Ordering::Relaxed) & WRITER, WRITER);
+
+        // Writer is responsible for clearing both WRITER and UPGRADED bits.
+        // The UPGRADED bit may be set if an upgradeable lock attempts an upgrade while this lock is held.
+        self.lock.fetch_and(!(WRITER | UPGRADED), Ordering::Release);
+    }
+
+    fn lock_shared(&self) {
+        // Prevent guard destructor running
+        core::mem::forget(self.read());
+    }
+
+    fn try_lock_shared(&self) -> bool {
+        // Prevent guard destructor running
+        self.try_read().map(|g| core::mem::forget(g)).is_some()
+    }
+
+    unsafe fn unlock_shared(&self) {
+        debug_assert!(self.lock.load(Ordering::Relaxed) & !(WRITER | UPGRADED) > 0);
+        self.lock.fetch_sub(READER, Ordering::Release);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::prelude::v1::*;

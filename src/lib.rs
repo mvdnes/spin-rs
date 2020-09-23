@@ -16,3 +16,13 @@ pub use once::*;
 mod mutex;
 mod rw_lock;
 mod once;
+
+/// Spin synchronisation primitives, but compatible with `lock_api`.
+#[cfg(feature = "lock_api1")]
+pub mod lock_api {
+    /// `lock_api`-compatible version of [`crate::Mutex`].
+    pub type Mutex<T> = lock_api::Mutex<crate::Mutex<()>, T>;
+
+    /// `lock_api`-compatible version of [`crate::RwLock`].
+    pub type RwLock<T> = lock_api::RwLock<crate::RwLock<()>, T>;
+}

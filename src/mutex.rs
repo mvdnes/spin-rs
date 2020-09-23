@@ -228,6 +228,31 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
     }
 }
 
+#[cfg(feature = "lock_api1")]
+unsafe impl lock_api::RawMutex for Mutex<()> {
+    type GuardMarker = lock_api::GuardSend;
+
+    const INIT: Self = Self::new(());
+
+    fn lock(&self) {
+        // Prevent guard destructor running
+        core::mem::forget(Mutex::lock(self));
+    }
+
+    fn try_lock(&self) -> bool {
+        // Prevent guard destructor running
+        Mutex::try_lock(self).map(|g| core::mem::forget(g)).is_some()
+    }
+
+    unsafe fn unlock(&self) {
+        self.lock.store(false, Ordering::Release);
+    }
+
+    fn is_locked(&self) -> bool {
+        self.lock.load(Ordering::Relaxed)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::prelude::v1::*;
