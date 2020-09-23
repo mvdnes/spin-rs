@@ -618,6 +618,10 @@ unsafe impl lock_api::RawRwLock for RwLock<()> {
             data: NonNull::new_unchecked(self.data.get()),
         });
     }
+
+    fn is_locked(&self) -> bool {
+        self.lock.load(Ordering::Relaxed) != 0
+    }
 }
 
 #[cfg(feature = "lock_api1")]
