@@ -75,6 +75,10 @@ pub struct RwLockReadGuard<'a, T: 'a + ?Sized> {
     data: NonNull<T>,
 }
 
+// These are safe because access to the inner data is determined by the atomic and is not dependent on the thread model
+unsafe impl<'a, T: ?Sized> Send for RwLockReadGuard<'a, T> where &'a T: Send {}
+unsafe impl<'a, T: ?Sized> Sync for RwLockReadGuard<'a, T> where &'a T: Sync {}
+
 /// A guard to which the protected data can be written
 ///
 /// When the guard falls out of scope it will release the lock.
@@ -85,6 +89,10 @@ pub struct RwLockWriteGuard<'a, T: 'a + ?Sized> {
     #[doc(hidden)]
     _invariant: PhantomData<&'a mut T>,
 }
+
+// These are safe because access to the inner data is determined by the atomic and is not dependent on the thread model
+unsafe impl<'a, T: ?Sized> Send for RwLockWriteGuard<'a, T> where &'a T: Send {}
+unsafe impl<'a, T: ?Sized> Sync for RwLockWriteGuard<'a, T> where &'a T: Sync {}
 
 /// A guard from which the protected data can be read, and can be upgraded
 /// to a writable guard if needed
@@ -101,6 +109,10 @@ pub struct RwLockUpgradeableGuard<'a, T: 'a + ?Sized> {
     #[doc(hidden)]
     _invariant: PhantomData<&'a mut T>,
 }
+
+// These are safe because access to the inner data is determined by the atomic and is not dependent on the thread model
+unsafe impl<'a, T: ?Sized> Send for RwLockUpgradeableGuard<'a, T> where &'a T: Send {}
+unsafe impl<'a, T: ?Sized> Sync for RwLockUpgradeableGuard<'a, T> where &'a T: Sync {}
 
 // Same unsafe impls as `std::sync::RwLock`
 unsafe impl<T: ?Sized + Send> Send for RwLock<T> {}
@@ -210,6 +222,26 @@ impl<T: ?Sized> RwLock<T> {
                 data: unsafe { NonNull::new_unchecked(self.data.get()) },
             })
         }
+    }
+
+    /// Return the number of readers that currently hold the lock.
+    ///
+    /// This is an approximation and should only be used in cases where usage heuristics are required. It should not
+    /// be used as a form of synchronisation because the return value is potentially incorrect the instant the function
+    /// is called.
+    pub fn reader_count(&self) -> usize {
+        self.lock.load(Ordering::Relaxed) / READER
+    }
+
+    /// Return the number of writers that currently hold the lock.
+    ///
+    /// Because [`RwLock`] guarantees exclusive mutable access, this function may only return either `0` or `1`.
+    ///
+    /// This is an approximation and should only be used in cases where usage heuristics are required. It should not
+    /// be used as a form of synchronisation because the return value is potentially incorrect the instant the function
+    /// is called.
+    pub fn writer_count(&self) -> usize {
+        (self.lock.load(Ordering::Relaxed) & WRITER) / WRITER
     }
 
     /// Force decrement the reader count.

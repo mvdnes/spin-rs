@@ -85,6 +85,10 @@ pub struct MutexGuard<'a, T: ?Sized + 'a>
     data: &'a mut T,
 }
 
+// These are safe because access to the inner data is determined by the atomic and is not dependent on the thread model
+unsafe impl<'a, T: ?Sized> Send for MutexGuard<'a, T> where &'a T: Send {}
+unsafe impl<'a, T: ?Sized> Sync for MutexGuard<'a, T> where &'a T: Send {}
+
 // Same unsafe impls as `std::sync::Mutex`
 unsafe impl<T: ?Sized + Send> Sync for Mutex<T> {}
 unsafe impl<T: ?Sized + Send> Send for Mutex<T> {}
@@ -400,7 +404,7 @@ mod tests {
         ::std::mem::forget(lock.lock());
         unsafe {
             lock.force_unlock();
-        } 
+        }
         assert!(lock.try_lock().is_some());
     }
 }
