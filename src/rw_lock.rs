@@ -596,9 +596,8 @@ unsafe impl lock_api::RawRwLock for RwLock<()> {
 
     unsafe fn unlock_exclusive(&self) {
         drop(RwLockWriteGuard {
-            lock: &self.lock,
-            data: NonNull::new_unchecked(self.data.get()),
-            _invariant: PhantomData,
+            inner: self,
+            data: &mut (),
         });
     }
 
@@ -614,8 +613,8 @@ unsafe impl lock_api::RawRwLock for RwLock<()> {
 
     unsafe fn unlock_shared(&self) {
         drop(RwLockReadGuard {
-            lock: &self.lock,
-            data: NonNull::new_unchecked(self.data.get()),
+            inner: self,
+            data: &(),
         });
     }
 
@@ -638,26 +637,23 @@ unsafe impl lock_api::RawRwLockUpgrade for RwLock<()> {
 
     unsafe fn unlock_upgradable(&self) {
         drop(RwLockUpgradeableGuard {
-            lock: &self.lock,
-            data: NonNull::new_unchecked(self.data.get()),
-            _invariant: PhantomData,
+            inner: self,
+            data: &(),
         });
     }
 
     unsafe fn upgrade(&self) {
         let tmp_guard = RwLockUpgradeableGuard {
-            lock: &self.lock,
-            data: NonNull::new_unchecked(self.data.get()),
-            _invariant: PhantomData,
+            inner: self,
+            data: &(),
         };
         core::mem::forget(tmp_guard.upgrade());
     }
 
     unsafe fn try_upgrade(&self) -> bool {
         let tmp_guard = RwLockUpgradeableGuard {
-            lock: &self.lock,
-            data: NonNull::new_unchecked(self.data.get()),
-            _invariant: PhantomData,
+            inner: self,
+            data: &(),
         };
         tmp_guard.try_upgrade().map(|g| core::mem::forget(g)).is_ok()
     }
