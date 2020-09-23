@@ -618,6 +618,45 @@ unsafe impl lock_api::RawRwLock for RwLock<()> {
     }
 }
 
+#[cfg(feature = "lock_api1")]
+unsafe impl lock_api::RawRwLockUpgrade for RwLock<()> {
+    fn lock_upgradable(&self) {
+        // Prevent guard destructor running
+        core::mem::forget(self.upgradeable_read());
+    }
+
+    fn try_lock_upgradable(&self) -> bool {
+        // Prevent guard destructor running
+        self.try_upgradeable_read().map(|g| core::mem::forget(g)).is_some()
+    }
+
+    unsafe fn unlock_upgradable(&self) {
+        debug_assert_eq!(
+            self.lock.load(Ordering::Relaxed) & (WRITER | UPGRADED),
+            UPGRADED
+        );
+        self.lock.fetch_sub(UPGRADED, Ordering::AcqRel);
+    }
+
+    unsafe fn upgrade(&self) {
+        let tmp_guard = RwLockUpgradeableGuard {
+            lock: &self.lock,
+            data: NonNull::new_unchecked(self.data.get()),
+            _invariant: PhantomData,
+        };
+        core::mem::forget(tmp_guard.upgrade());
+    }
+
+    unsafe fn try_upgrade(&self) -> bool {
+        let tmp_guard = RwLockUpgradeableGuard {
+            lock: &self.lock,
+            data: NonNull::new_unchecked(self.data.get()),
+            _invariant: PhantomData,
+        };
+        tmp_guard.try_upgrade().map(|g| core::mem::forget(g)).is_ok()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::prelude::v1::*;

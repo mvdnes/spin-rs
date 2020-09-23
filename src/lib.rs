@@ -34,4 +34,7 @@ pub mod lock_api {
 
     /// `lock_api`-compatible version of [`crate::RwLockReadGuard`].
     pub type RwLockReadGuard<'a, T> = lock_api::RwLockReadGuard<'a, crate::RwLock<()>, T>;
+
+    /// `lock_api`-compatible version of [`crate::RwLockUpgradeableGuard`].
+    pub type RwLockUpgradableReadGuard<'a, T> = lock_api::RwLockUpgradableReadGuard<'a, crate::RwLock<()>, T>;
 }
