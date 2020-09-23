@@ -121,7 +121,7 @@ impl<T> Mutex<T> {
 impl<T: ?Sized> Mutex<T>
 {
     fn obtain_lock(&self) {
-        while self.lock.compare_and_swap(false, true, Ordering::Acquire) != false {
+        while self.lock.compare_and_swap(false, true, Ordering::Acquire) {
             // Wait until the lock looks unlocked before retrying
             while self.lock.load(Ordering::Relaxed) {
                 cpu_relax();
@@ -154,6 +154,8 @@ impl<T: ?Sized> Mutex<T>
 
     /// Force unlock the spinlock.
     ///
+    /// # Safety
+    ///
     /// This is *extremely* unsafe if the lock is not held by the current
     /// thread. However, this can be useful in some instances for exposing the
     /// lock to FFI that doesn't know how to deal with RAII.
@@ -166,7 +168,7 @@ impl<T: ?Sized> Mutex<T>
     /// Tries to lock the mutex. If it is already locked, it will return None. Otherwise it returns
     /// a guard within Some.
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
-        if self.lock.compare_and_swap(false, true, Ordering::Acquire) == false {
+        if !self.lock.compare_and_swap(false, true, Ordering::Acquire) {
             Some(MutexGuard {
                 lock: &self.lock,
                 data: unsafe { &mut *self.data.get() },
@@ -214,11 +216,11 @@ impl<T: ?Sized + Default> Default for Mutex<T> {
 
 impl<'a, T: ?Sized> Deref for MutexGuard<'a, T> {
     type Target = T;
-    fn deref<'b>(&'b self) -> &'b T { &*self.data }
+    fn deref(&self) -> &T { self.data }
 }
 
 impl<'a, T: ?Sized> DerefMut for MutexGuard<'a, T> {
-    fn deref_mut<'b>(&'b mut self) -> &'b mut T { &mut *self.data }
+    fn deref_mut(&mut self) -> &mut T { self.data }
 }
 
 impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {

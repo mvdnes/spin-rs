@@ -229,6 +229,8 @@ impl<T: ?Sized> RwLock<T> {
 
     /// Force decrement the reader count.
     ///
+    /// # Safety
+    ///
     /// This is *extremely* unsafe if there are outstanding `RwLockReadGuard`s
     /// live, or if called more times than `read` has been called, but can be
     /// useful in FFI contexts where the caller doesn't know how to deal with
@@ -240,6 +242,8 @@ impl<T: ?Sized> RwLock<T> {
     }
 
     /// Force unlock exclusive write access.
+    ///
+    /// # Safety
     ///
     /// This is *extremely* unsafe if there are outstanding `RwLockWriteGuard`s
     /// live, or if called when there are current readers, but can be useful in
@@ -406,12 +410,10 @@ impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
             mem::forget(self);
 
             // Upgrade successful
-            let out = Ok(RwLockWriteGuard {
+            Ok(RwLockWriteGuard {
                 inner,
                 data: unsafe { &mut *inner.data.get() },
-            });
-
-            out
+            })
         } else {
             Err(self)
         }
@@ -525,6 +527,8 @@ impl<'rwlock, T: ?Sized> RwLockWriteGuard<'rwlock, T> {
     /// ```
     #[inline]
     pub fn downgrade_to_upgradeable(self) -> RwLockUpgradeableGuard<'rwlock, T> {
+        debug_assert_eq!(self.inner.lock.load(Ordering::Acquire) & (WRITER | UPGRADED), WRITER);
+
         // Reserve the read guard for ourselves
         self.inner.lock.store(UPGRADED, Ordering::Release);
 
@@ -619,16 +623,19 @@ unsafe impl lock_api::RawRwLock for RwLock<()> {
 
     const INIT: Self = Self::new(());
 
+    #[inline(always)]
     fn lock_exclusive(&self) {
         // Prevent guard destructor running
         core::mem::forget(self.write());
     }
 
+    #[inline(always)]
     fn try_lock_exclusive(&self) -> bool {
         // Prevent guard destructor running
         self.try_write().map(|g| core::mem::forget(g)).is_some()
     }
 
+    #[inline(always)]
     unsafe fn unlock_exclusive(&self) {
         drop(RwLockWriteGuard {
             inner: self,
@@ -636,16 +643,19 @@ unsafe impl lock_api::RawRwLock for RwLock<()> {
         });
     }
 
+    #[inline(always)]
     fn lock_shared(&self) {
         // Prevent guard destructor running
         core::mem::forget(self.read());
     }
 
+    #[inline(always)]
     fn try_lock_shared(&self) -> bool {
         // Prevent guard destructor running
         self.try_read().map(|g| core::mem::forget(g)).is_some()
     }
 
+    #[inline(always)]
     unsafe fn unlock_shared(&self) {
         drop(RwLockReadGuard {
             inner: self,
@@ -653,6 +663,7 @@ unsafe impl lock_api::RawRwLock for RwLock<()> {
         });
     }
 
+    #[inline(always)]
     fn is_locked(&self) -> bool {
         self.lock.load(Ordering::Relaxed) != 0
     }
@@ -660,16 +671,19 @@ unsafe impl lock_api::RawRwLock for RwLock<()> {
 
 #[cfg(feature = "lock_api1")]
 unsafe impl lock_api::RawRwLockUpgrade for RwLock<()> {
+    #[inline(always)]
     fn lock_upgradable(&self) {
         // Prevent guard destructor running
         core::mem::forget(self.upgradeable_read());
     }
 
+    #[inline(always)]
     fn try_lock_upgradable(&self) -> bool {
         // Prevent guard destructor running
         self.try_upgradeable_read().map(|g| core::mem::forget(g)).is_some()
     }
 
+    #[inline(always)]
     unsafe fn unlock_upgradable(&self) {
         drop(RwLockUpgradeableGuard {
             inner: self,
@@ -677,6 +691,7 @@ unsafe impl lock_api::RawRwLockUpgrade for RwLock<()> {
         });
     }
 
+    #[inline(always)]
     unsafe fn upgrade(&self) {
         let tmp_guard = RwLockUpgradeableGuard {
             inner: self,
@@ -685,6 +700,7 @@ unsafe impl lock_api::RawRwLockUpgrade for RwLock<()> {
         core::mem::forget(tmp_guard.upgrade());
     }
 
+    #[inline(always)]
     unsafe fn try_upgrade(&self) -> bool {
         let tmp_guard = RwLockUpgradeableGuard {
             inner: self,
