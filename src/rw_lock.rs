@@ -595,11 +595,11 @@ unsafe impl lock_api::RawRwLock for RwLock<()> {
     }
 
     unsafe fn unlock_exclusive(&self) {
-        debug_assert_eq!(self.lock.load(Ordering::Relaxed) & WRITER, WRITER);
-
-        // Writer is responsible for clearing both WRITER and UPGRADED bits.
-        // The UPGRADED bit may be set if an upgradeable lock attempts an upgrade while this lock is held.
-        self.lock.fetch_and(!(WRITER | UPGRADED), Ordering::Release);
+        drop(RwLockWriteGuard {
+            lock: &self.lock,
+            data: NonNull::new_unchecked(self.data.get()),
+            _invariant: PhantomData,
+        });
     }
 
     fn lock_shared(&self) {
@@ -613,8 +613,10 @@ unsafe impl lock_api::RawRwLock for RwLock<()> {
     }
 
     unsafe fn unlock_shared(&self) {
-        debug_assert!(self.lock.load(Ordering::Relaxed) & !(WRITER | UPGRADED) > 0);
-        self.lock.fetch_sub(READER, Ordering::Release);
+        drop(RwLockReadGuard {
+            lock: &self.lock,
+            data: NonNull::new_unchecked(self.data.get()),
+        });
     }
 }
 
@@ -631,11 +633,11 @@ unsafe impl lock_api::RawRwLockUpgrade for RwLock<()> {
     }
 
     unsafe fn unlock_upgradable(&self) {
-        debug_assert_eq!(
-            self.lock.load(Ordering::Relaxed) & (WRITER | UPGRADED),
-            UPGRADED
-        );
-        self.lock.fetch_sub(UPGRADED, Ordering::AcqRel);
+        drop(RwLockUpgradeableGuard {
+            lock: &self.lock,
+            data: NonNull::new_unchecked(self.data.get()),
+            _invariant: PhantomData,
+        });
     }
 
     unsafe fn upgrade(&self) {

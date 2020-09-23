@@ -245,7 +245,7 @@ unsafe impl lock_api::RawMutex for Mutex<()> {
     }
 
     unsafe fn unlock(&self) {
-        self.lock.store(false, Ordering::Release);
+        self.force_unlock();
     }
 
     fn is_locked(&self) -> bool {
