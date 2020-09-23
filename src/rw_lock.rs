@@ -400,14 +400,17 @@ impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
         )
         .is_ok()
         {
+            // Forget the old guard so its destructor doesn't run
+            let inner = self.inner;
+
+            // Drop old reference before mutably aliasing data below
+            mem::forget(self);
+
             // Upgrade successful
             let out = Ok(RwLockWriteGuard {
-                inner: self.inner,
-                data: unsafe { &mut *self.inner.data.get() },
+                inner,
+                data: unsafe { &mut *inner.data.get() },
             });
-
-            // Forget the old guard so its destructor doesn't run
-            mem::forget(self);
 
             out
         } else {
@@ -469,12 +472,15 @@ impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
         // Reserve the read guard for ourselves
         self.inner.lock.fetch_add(READER, Ordering::Acquire);
 
-        RwLockReadGuard {
-            inner: self.inner,
-            data: unsafe { &*self.inner.data.get() },
-        }
+        let inner = self.inner;
 
         // Dropping self removes the UPGRADED bit
+        mem::drop(self);
+
+        RwLockReadGuard {
+            inner,
+            data: unsafe { &*inner.data.get() },
+        }
     }
 }
 
@@ -496,12 +502,15 @@ impl<'rwlock, T: ?Sized> RwLockWriteGuard<'rwlock, T> {
         // Reserve the read guard for ourselves
         self.inner.lock.fetch_add(READER, Ordering::Acquire);
 
-        RwLockReadGuard {
-            inner: self.inner,
-            data: unsafe { &*self.inner.data.get() },
-        }
+        let inner = self.inner;
 
-        // Dropping self removes the WRITER bit
+        // Dropping self removes the UPGRADED bit
+        mem::drop(self);
+
+        RwLockReadGuard {
+            inner,
+            data: unsafe { &*inner.data.get() },
+        }
     }
 }
 
