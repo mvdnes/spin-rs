@@ -53,6 +53,7 @@ use core::hint::unreachable_unchecked as unreachable;
 
 impl<T> Once<T> {
     /// Initialization constant of `Once`.
+    #[allow(clippy::declare_interior_mutable_const)]
     pub const INIT: Self = Once {
         state: AtomicUsize::new(INCOMPLETE),
         data: UnsafeCell::new(MaybeUninit::uninit()),
@@ -64,13 +65,11 @@ impl<T> Once<T> {
     }
 
     /// Get a reference to the initialized instance. Must only be called once COMPLETE.
-    fn force_get<'a>(&'a self) -> &'a T {
-        unsafe {
-            // SAFETY:
-            // * `UnsafeCell`/inner deref: data never changes again
-            // * `MaybeUninit`/outer deref: data was initialized
-            &*(*self.data.get()).as_ptr()
-        }
+    unsafe fn force_get(&self) -> &T {
+        // SAFETY:
+        // * `UnsafeCell`/inner deref: data never changes again
+        // * `MaybeUninit`/outer deref: data was initialized
+        &*(*self.data.get()).as_ptr()
     }
 
     /// Performs an initialization routine once and only once. The given closure
@@ -101,9 +100,7 @@ impl<T> Once<T> {
     /// # 2
     /// }
     /// ```
-    pub fn call_once<'a, F>(&'a self, builder: F) -> &'a T
-        where F: FnOnce() -> T
-    {
+    pub fn call_once<F: FnOnce() -> T>(&self, builder: F) -> &T {
         let mut status = self.state.load(Ordering::SeqCst);
 
         if status == INCOMPLETE {
@@ -129,7 +126,7 @@ impl<T> Once<T> {
                 self.state.store(status, Ordering::SeqCst);
 
                 // This next line is strictly an optimization
-                return self.force_get();
+                return unsafe { self.force_get() };
             }
         }
 
@@ -141,28 +138,28 @@ impl<T> Once<T> {
                     status = self.state.load(Ordering::SeqCst)
                 },
                 PANICKED => panic!("Once has panicked"),
-                COMPLETE => return self.force_get(),
+                COMPLETE => return unsafe { self.force_get() },
                 _ => unsafe { unreachable() },
             }
         }
     }
 
     /// Returns a pointer iff the `Once` was previously initialized
-    pub fn try<'a>(&'a self) -> Option<&'a T> {
+    pub fn try(&self) -> Option<&T> {
         match self.state.load(Ordering::SeqCst) {
-            COMPLETE => Some(self.force_get()),
+            COMPLETE => Some(unsafe { self.force_get() }),
             _ => None,
         }
     }
 
     /// Like try, but will spin if the `Once` is in the process of being
     /// initialized
-    pub fn wait<'a>(&'a self) -> Option<&'a T> {
+    pub fn wait(&self) -> Option<&T> {
         loop {
             match self.state.load(Ordering::SeqCst) {
                 INCOMPLETE => return None,
                 RUNNING => cpu_relax(), // We spin
-                COMPLETE => return Some(self.force_get()),
+                COMPLETE => return Some(unsafe { self.force_get() }),
                 PANICKED => panic!("Once has panicked"),
                 _ => unsafe { unreachable() },
             }

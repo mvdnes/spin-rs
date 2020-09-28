@@ -13,3 +13,9 @@ Synchronization primitives based on spinning.
 They may contain data, are usable without `std`,
 and static initializers are available.
 """
+
+[dependencies]
+lock_api = { version = "0.4", optional = true }
+
+[features]
+lock_api1 = ["lock_api"]
