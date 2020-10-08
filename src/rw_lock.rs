@@ -402,8 +402,7 @@ impl<'rwlock, T: ?Sized> RwLockReadGuard<'rwlock, T> {
     /// ```
     #[inline]
     pub fn leak(self) -> &'rwlock T {
-        let data = self.data; // Keep it in pointer form temporarily to avoid double-aliasing
-        core::mem::forget(self);
+        let Self { data, .. } = self;
         data
     }
 }
@@ -526,8 +525,7 @@ impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
     /// ```
     #[inline]
     pub fn leak(self) -> &'rwlock T {
-        let data = self.data; // Keep it in pointer form temporarily to avoid double-aliasing
-        core::mem::forget(self);
+        let Self { data, .. } = self;
         data
     }
 }
