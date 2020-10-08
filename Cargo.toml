@@ -1,18 +1,16 @@
 [package]
-
 name = "spin"
-version = "0.5.2"
-authors = [ "Mathijs van de Nes <git@mathijs.vd-nes.nl>",
-            "John Ericson <git@JohnEricson.me>" ]
+version = "0.6.0"
+authors = [
+	"Mathijs van de Nes <git@mathijs.vd-nes.nl>",
+	"John Ericson <git@JohnEricson.me>",
+	"Joshua Barretto <joshua.s.barretto@gmail.com>",
+]
 license = "MIT"
 repository = "https://github.com/mvdnes/spin-rs.git"
 documentation = "https://mvdnes.github.io/rust-docs/spin-rs/spin/index.html"
 keywords = ["spinlock", "mutex", "rwlock"]
-description = """
-Synchronization primitives based on spinning.
-They may contain data, are usable without `std`,
-and static initializers are available.
-"""
+description = "Spin-based synchronisation primitives"
 
 [dependencies]
 lock_api = { version = "0.4", optional = true }
