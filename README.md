@@ -41,8 +41,10 @@ When calling `lock` on a `Mutex` you will get a guard value that allows
 referencing the data. When this guard is dropped, the lock will be unlocked.
 
 ```rust
+extern crate spin;
+
 fn main() {
-    let mutex   = spin::Mutex::new(0);
+    let mutex = spin::Mutex::new(0);
     let rw_lock = spin::RwLock::new(0);
 
     // Modify the data
