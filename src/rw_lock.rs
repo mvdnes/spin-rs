@@ -68,7 +68,6 @@ const WRITER: usize = 1;
 ///
 /// When the guard falls out of scope it will decrement the read count,
 /// potentially releasing the lock.
-#[derive(Debug)]
 pub struct RwLockReadGuard<'a, T: 'a + ?Sized> {
     inner: &'a RwLock<T>,
     data: &'a T,
@@ -77,7 +76,6 @@ pub struct RwLockReadGuard<'a, T: 'a + ?Sized> {
 /// A guard to which the protected data can be written
 ///
 /// When the guard falls out of scope it will release the lock.
-#[derive(Debug)]
 pub struct RwLockWriteGuard<'a, T: 'a + ?Sized> {
     inner: &'a RwLock<T>,
     data: &'a mut T,
@@ -91,7 +89,6 @@ pub struct RwLockWriteGuard<'a, T: 'a + ?Sized> {
 /// when the lock is acquired.
 ///
 /// When the guard falls out of scope it will release the lock.
-#[derive(Debug)]
 pub struct RwLockUpgradeableGuard<'a, T: 'a + ?Sized> {
     inner: &'a RwLock<T>,
     data: &'a T,
@@ -391,6 +388,38 @@ impl<T: ?Sized + Default> Default for RwLock<T> {
     }
 }
 
+impl<'rwlock, T: ?Sized> RwLockReadGuard<'rwlock, T> {
+    /// Leak the lock guard, yielding a reference to the underlying data.
+    ///
+    /// Note that this function will permanently lock the original lock for all but reading locks.
+    ///
+    /// ```
+    /// let mylock = spin::RwLock::new(0);
+    ///
+    /// let data: &i32 = mylock.read().leak();
+    ///
+    /// assert_eq!(*data, 0);
+    /// ```
+    #[inline]
+    pub fn leak(self) -> &'rwlock T {
+        let data = self.data; // Keep it in pointer form temporarily to avoid double-aliasing
+        core::mem::forget(self);
+        data
+    }
+}
+
+impl<'rwlock, T: ?Sized + fmt::Debug> fmt::Debug for RwLockReadGuard<'rwlock, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&**self, f)
+    }
+}
+
+impl<'rwlock, T: ?Sized + fmt::Display> fmt::Display for RwLockReadGuard<'rwlock, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&**self, f)
+    }
+}
+
 impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
     #[inline(always)]
     fn try_upgrade_internal(self, strong: bool) -> Result<RwLockWriteGuard<'rwlock, T>, Self> {
@@ -483,6 +512,36 @@ impl<'rwlock, T: ?Sized> RwLockUpgradeableGuard<'rwlock, T> {
             data: unsafe { &*inner.data.get() },
         }
     }
+
+    /// Leak the lock guard, yielding a reference to the underlying data.
+    ///
+    /// Note that this function will permanently lock the original lock.
+    ///
+    /// ```
+    /// let mylock = spin::RwLock::new(0);
+    ///
+    /// let data: &i32 = mylock.upgradeable_read().leak();
+    ///
+    /// assert_eq!(*data, 0);
+    /// ```
+    #[inline]
+    pub fn leak(self) -> &'rwlock T {
+        let data = self.data; // Keep it in pointer form temporarily to avoid double-aliasing
+        core::mem::forget(self);
+        data
+    }
+}
+
+impl<'rwlock, T: ?Sized + fmt::Debug> fmt::Debug for RwLockUpgradeableGuard<'rwlock, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&**self, f)
+    }
+}
+
+impl<'rwlock, T: ?Sized + fmt::Display> fmt::Display for RwLockUpgradeableGuard<'rwlock, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&**self, f)
+    }
 }
 
 impl<'rwlock, T: ?Sized> RwLockWriteGuard<'rwlock, T> {
@@ -541,6 +600,37 @@ impl<'rwlock, T: ?Sized> RwLockWriteGuard<'rwlock, T> {
             inner,
             data: unsafe { &*inner.data.get() },
         }
+    }
+
+    /// Leak the lock guard, yielding a mutable reference to the underlying data.
+    ///
+    /// Note that this function will permanently lock the original lock.
+    ///
+    /// ```
+    /// let mylock = spin::RwLock::new(0);
+    ///
+    /// let data: &mut i32 = mylock.write().leak();
+    ///
+    /// *data = 1;
+    /// assert_eq!(*data, 1);
+    /// ```
+    #[inline]
+    pub fn leak(self) -> &'rwlock mut T {
+        let data = self.data as *mut _; // Keep it in pointer form temporarily to avoid double-aliasing
+        core::mem::forget(self);
+        unsafe { &mut *data }
+    }
+}
+
+impl<'rwlock, T: ?Sized + fmt::Debug> fmt::Debug for RwLockWriteGuard<'rwlock, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&**self, f)
+    }
+}
+
+impl<'rwlock, T: ?Sized + fmt::Display> fmt::Display for RwLockWriteGuard<'rwlock, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&**self, f)
     }
 }
 
