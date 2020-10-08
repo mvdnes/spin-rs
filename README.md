@@ -1,5 +1,3 @@
-**Unfortunately, due to a lack of time and loss of interest, this project will no longer be actively maintained.**
-
 spin-rs
 ===========
 
@@ -23,12 +21,10 @@ version = "0.5"
 Example
 -------
 
-When calling `lock` on a `Mutex` you will get a reference to the data. When this
-reference is dropped, the lock will be unlocked.
+When calling `lock` on a `Mutex` you will get a guard value that allows
+referencing the data. When this guard is dropped, the lock will be unlocked.
 
 ```rust
-extern crate spin;
-
 fn main()
 {
     let mutex   = spin::Mutex::new(0);
@@ -63,4 +59,5 @@ Remarks
 The behaviour of these lock is similar to their namesakes in `std::sync`. they
 differ on the following:
 
- - The lock will not be poisoned in case of failure;
+- Locks will not be poisoned in case of failure;
+- Guards can be sent between and shared among threads
