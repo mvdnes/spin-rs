@@ -76,7 +76,6 @@ pub struct Mutex<T: ?Sized> {
 /// A guard to which the protected data can be accessed
 ///
 /// When the guard falls out of scope it will release the lock.
-#[derive(Debug)]
 pub struct MutexGuard<'a, T: ?Sized + 'a> {
     lock: &'a AtomicBool,
     data: &'a mut T,
@@ -211,6 +210,39 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for Mutex<T> {
 impl<T: ?Sized + Default> Default for Mutex<T> {
     fn default() -> Mutex<T> {
         Mutex::new(Default::default())
+    }
+}
+
+impl<'a, T: ?Sized> MutexGuard<'a, T> {
+    /// Leak the lock guard, yielding a mutable reference to the underlying data.
+    ///
+    /// Note that this function will permanently lock the original lock.
+    ///
+    /// ```
+    /// let mylock = spin::Mutex::new(0);
+    ///
+    /// let data: &mut i32 = mylock.lock().leak();
+    ///
+    /// *data = 1;
+    /// assert_eq!(*data, 1);
+    /// ```
+    #[inline]
+    pub fn leak(self) -> &'a mut T {
+        let data = self.data as *mut _; // Keep it in pointer form temporarily to avoid double-aliasing
+        core::mem::forget(self);
+        unsafe { &mut *data }
+    }
+}
+
+impl<'a, T: ?Sized + fmt::Debug> fmt::Debug for MutexGuard<'a, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&**self, f)
+    }
+}
+
+impl<'a, T: ?Sized + fmt::Display> fmt::Display for MutexGuard<'a, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&**self, f)
     }
 }
 
