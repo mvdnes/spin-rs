@@ -1,15 +1,14 @@
 # spin-rs
 
-[![Build Status](https://travis-ci.org/mvdnes/spin-rs.svg)](https://travis-ci.org/mvdnes/spin-rs)
 [![Crates.io version](https://img.shields.io/crates/v/spin.svg)](https://crates.io/crates/spin)
 [![docs.rs](https://docs.rs/spin/badge.svg)](https://docs.rs/spin/)
+[![Build Status](https://travis-ci.org/mvdnes/spin-rs.svg)](https://travis-ci.org/mvdnes/spin-rs)
 
 Spin-based synchronization primitives.
 
-This crate implements a variety of simple
-[spinlock](https://en.wikipedia.org/wiki/Spinlock)-like primitives with similar
-interfaces to those in `std::sync`. Because synchronization uses spinning, the
-primitives are suitable for use in `no_std` environments.
+This crate provides [spin-based]((https://en.wikipedia.org/wiki/Spinlock))
+versions of the primitives in `std::sync`. Because synchronization is done
+through spinning, the primitives are suitable for use in `no_std` environments.
 
 Before deciding to use `spin`, we recommend reading
 [this superb blog post](https://matklad.github.io/2020/01/02/spinlocks-considered-harmful.html)
@@ -28,42 +27,40 @@ spinlocks. If you have access to `std`, it's likely that the primitives in
 
 ## Usage
 
-Include the following code in your Cargo.toml
+Include the following under the `[dependencies]` section in your `Cargo.toml` file.
 
 ```toml
-[dependencies.spin]
-version = "0.5"
+spin = "x.y"
 ```
 
 ## Example
 
-When calling `lock` on a `Mutex` you will get a guard value that allows
-referencing the data. When this guard is dropped, the lock will be unlocked.
+When calling `lock` on a `Mutex` you will get a guard value that provides access
+to the data. When this guard is dropped, the lock will be unlocked.
 
 ```rust
 extern crate spin;
+use std::{sync::Arc, thread};
 
 fn main() {
-    let mutex = spin::Mutex::new(0);
-    let rw_lock = spin::RwLock::new(0);
+    let counter = Arc::new(spin::Mutex::new(0));
 
-    // Modify the data
-    {
-      let mut data = mutex.lock();
-      *data = 2;
-      let mut data = rw_lock.write();
-      *data = 3;
+    let thread = thread::spawn({
+        let counter = counter.clone();
+        move || {
+            for _ in 0..10 {
+                *counter.lock() += 1;
+            }
+        }
+    });
+
+    for _ in 0..10 {
+        *counter.lock() += 1;
     }
 
-    // Read the data
-    let answer = {
-      let data1 = mutex.lock();
-      let data2 = rw_lock.read();
-      let data3 = rw_lock.read(); // sharing
-      (*data1, *data2, *data3)
-    };
+    thread.join().unwrap();
 
-    println!("Answers are {:?}", answer);
+    assert_eq!(*counter.lock(), 20);
 }
 ```
 

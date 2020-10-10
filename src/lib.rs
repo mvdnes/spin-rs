@@ -1,6 +1,7 @@
 #![deny(missing_docs)]
 
-//! This crate provides spin-based versions of the primitives in `std::sync`.
+//! This crate provides spin-based versions of the primitives in `std::sync`. Because synchronization is done
+//! through spinning, the primitives are suitable for use in `no_std` environments.
 //!
 //! # Features
 //!
