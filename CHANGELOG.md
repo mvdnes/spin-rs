@@ -14,8 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Once::try_into_inner`
 - `Once::poll`
 - `RwLock`, `Mutex` and `Once` now implement `From<T>`
+- `Lazy` type for lazy initialization
 
-### Changes
+### Changed
 
 - `Once::wait` now spins even if initialization has not yet started
 - `Guard::leak` is now an associated function instead of a method
