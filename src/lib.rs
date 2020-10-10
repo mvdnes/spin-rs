@@ -1,12 +1,12 @@
 #![deny(missing_docs)]
 
-//! This crate provides [spin-based](https://en.wikipedia.org/wiki/Spinlock) versions of the primitives in
-//! `std::sync`. Because synchronization is done through spinning, the primitives are suitable for use in
-//! `no_std` environments.
+//! This crate provides [spin-based](https://en.wikipedia.org/wiki/Spinlock) versions of the
+//! primitives in `std::sync` and `std::lazy`. Because synchronization is done through spinning,
+//! the primitives are suitable for use in `no_std` environments.
 //!
 //! # Features
 //!
-//! - `Mutex`, `RwLock` and `Once` equivalents
+//! - `Mutex`, `RwLock`, `Once`/`SyncOnceCell`, and `SyncLazy` equivalents
 //!
 //! - Support for `no_std` environments
 //!
