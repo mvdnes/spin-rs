@@ -6,7 +6,7 @@
 
 Spin-based synchronization primitives.
 
-This crate provides [spin-based]((https://en.wikipedia.org/wiki/Spinlock))
+This crate provides [spin-based](https://en.wikipedia.org/wiki/Spinlock)
 versions of the primitives in `std::sync`. Because synchronization is done
 through spinning, the primitives are suitable for use in `no_std` environments.
 
