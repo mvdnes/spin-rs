@@ -244,6 +244,12 @@ impl<T> Once<T> {
     }
 }
 
+impl<T> From<T> for Once<T> {
+    fn from(data: T) -> Self {
+        Self::initialized(data)
+    }
+}
+
 struct Finish<'a> {
     state: &'a AtomicUsize,
     panicked: bool,
