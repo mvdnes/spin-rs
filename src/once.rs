@@ -5,10 +5,13 @@ use core::{
     fmt,
 };
 
-/// A synchronization primitive which can be used to run a one-time global
-/// initialization. Unlike its std equivalent, this is generalized so that the
-/// closure returns a value and it is stored. Once therefore acts something like
-/// a future, too.
+/// A primitive that provides lazy one-time initialization.
+///
+/// Unlike its `std::sync` equivalent, this is generalized such that the closure returns a
+/// value to be stored by the [`Once`] (`std::sync::Once` can be trivially emulated with
+/// `Once<()>`).
+///
+/// Because [`Once::new`] is `const`, this primitive may be used to safely initialize statics.
 ///
 /// # Examples
 ///
@@ -28,7 +31,7 @@ pub struct Once<T> {
 
 impl<T: fmt::Debug> fmt::Debug for Once<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.try() {
+        match self.get() {
             Some(s) => write!(f, "Once {{ data: ")
 				.and_then(|()| s.fmt(f))
 				.and_then(|()| write!(f, "}}")),
@@ -52,16 +55,24 @@ const PANICKED: usize = 0x3;
 use core::hint::unreachable_unchecked as unreachable;
 
 impl<T> Once<T> {
-    /// Initialization constant of `Once`.
+    /// Initialization constant of [`Once`].
     #[allow(clippy::declare_interior_mutable_const)]
-    pub const INIT: Self = Once {
+    pub const INIT: Self = Self {
         state: AtomicUsize::new(INCOMPLETE),
         data: UnsafeCell::new(MaybeUninit::uninit()),
     };
 
-    /// Creates a new `Once` value.
+    /// Creates a new [`Once`].
     pub const fn new() -> Once<T> {
         Self::INIT
+    }
+
+    /// Creates a new initialized [`Once`].
+    pub const fn initialized(data: T) -> Once<T> {
+        Self {
+            state: AtomicUsize::new(COMPLETE),
+            data: UnsafeCell::new(MaybeUninit::new(data)),
+        }
     }
 
     /// Get a reference to the initialized instance. Must only be called once COMPLETE.
@@ -70,6 +81,22 @@ impl<T> Once<T> {
         // * `UnsafeCell`/inner deref: data never changes again
         // * `MaybeUninit`/outer deref: data was initialized
         &*(*self.data.get()).as_ptr()
+    }
+
+    /// Get a reference to the initialized instance. Must only be called once COMPLETE.
+    unsafe fn force_get_mut(&mut self) -> &mut T {
+        // SAFETY:
+        // * `UnsafeCell`/inner deref: data never changes again
+        // * `MaybeUninit`/outer deref: data was initialized
+        &mut *(*self.data.get()).as_mut_ptr()
+    }
+
+    /// Get a reference to the initialized instance. Must only be called once COMPLETE.
+    unsafe fn force_into_inner(self) -> T {
+        // SAFETY:
+        // * `UnsafeCell`/inner deref: data never changes again
+        // * `MaybeUninit`/outer deref: data was initialized
+        (*self.data.get()).as_ptr().read()
     }
 
     /// Performs an initialization routine once and only once. The given closure
@@ -83,6 +110,12 @@ impl<T> Once<T> {
     /// has run and completed (it may not be the closure specified). The
     /// returned pointer will point to the result from the closure that was
     /// run.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the [`Once`] previously panicked while attempting
+    /// to initialize. This is similar to the poisoning behaviour of `std::sync`'s
+    /// primitives.
     ///
     /// # Examples
     ///
@@ -100,7 +133,7 @@ impl<T> Once<T> {
     /// # 2
     /// }
     /// ```
-    pub fn call_once<F: FnOnce() -> T>(&self, builder: F) -> &T {
+    pub fn call_once<F: FnOnce() -> T>(&self, f: F) -> &T {
         let mut status = self.state.load(Ordering::SeqCst);
 
         if status == INCOMPLETE {
@@ -118,7 +151,7 @@ impl<T> Once<T> {
                     // `UnsafeCell`/deref: currently the only accessor, mutably
                     // and immutably by cas exclusion.
                     // `write`: pointer comes from `MaybeUninit`.
-                    (*self.data.get()).as_mut_ptr().write(builder())
+                    (*self.data.get()).as_mut_ptr().write(f())
                 };
                 finish.panicked = false;
 
@@ -130,37 +163,81 @@ impl<T> Once<T> {
             }
         }
 
-        loop {
-            match status {
-                INCOMPLETE => unreachable!(),
-                RUNNING => { // We spin
-                    cpu_relax();
-                    status = self.state.load(Ordering::SeqCst)
-                },
-                PANICKED => panic!("Once has panicked"),
-                COMPLETE => return unsafe { self.force_get() },
-                _ => unsafe { unreachable() },
-            }
-        }
+        self
+            .poll()
+            .unwrap_or_else(|| unreachable!("Encountered INCOMPLETE when polling Once"))
     }
 
-    /// Returns a pointer iff the `Once` was previously initialized
-    pub fn try(&self) -> Option<&T> {
+    /// Returns a reference to the inner value if the [`Once`] has been initialized.
+    pub fn get(&self) -> Option<&T> {
         match self.state.load(Ordering::SeqCst) {
             COMPLETE => Some(unsafe { self.force_get() }),
             _ => None,
         }
     }
 
-    /// Like try, but will spin if the `Once` is in the process of being
-    /// initialized
-    pub fn wait(&self) -> Option<&T> {
+    /// Returns a mutable reference to the inner value if the [`Once`] has been initialized.
+    ///
+    /// Because this method requires a mutable reference to the [`Once`], no synchronization
+    /// overhead is required to access the inner value. In effect, it is zero-cost.
+    pub fn get_mut(&mut self) -> Option<&mut T> {
+        match *self.state.get_mut() {
+            COMPLETE => Some(unsafe { self.force_get_mut() }),
+            _ => None,
+        }
+    }
+
+    /// Returns a the inner value if the [`Once`] has been initialized.
+    ///
+    /// Because this method requires ownershup of the [`Once`], no synchronization overhead
+    /// is required to access the inner value. In effect, it is zero-cost.
+    pub fn try_into_inner(mut self) -> Option<T> {
+        match *self.state.get_mut() {
+            COMPLETE => Some(unsafe { self.force_into_inner() }),
+            _ => None,
+        }
+    }
+
+    /// Returns a reference to the inner value if the [`Once`] has been initialized.
+    pub fn is_completed(&self) -> bool {
+        self.state.load(Ordering::SeqCst) == COMPLETE
+    }
+
+    /// Spins until the [`Once`] contains a value.
+    ///
+    /// Note that in releases prior to `0.7`, this function had the behaviour of [`Once::poll`].
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the [`Once`] previously panicked while attempting
+    /// to initialize. This is similar to the poisoning behaviour of `std::sync`'s
+    /// primitives.
+    pub fn wait(&self) -> &T {
+        loop {
+            match self.poll() {
+                Some(x) => break x,
+                None => cpu_relax(),
+            }
+        }
+    }
+
+    /// Like [`Once::get`], but will spin if the [`Once`] is in the process of being
+    /// initialized. If initialization has not even begun, `None` will be returned.
+    ///
+    /// Note that in releases prior to `0.7`, this function was named `wait`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the [`Once`] previously panicked while attempting
+    /// to initialize. This is similar to the poisoning behaviour of `std::sync`'s
+    /// primitives.
+    pub fn poll(&self) -> Option<&T> {
         loop {
             match self.state.load(Ordering::SeqCst) {
                 INCOMPLETE => return None,
                 RUNNING => cpu_relax(), // We spin
                 COMPLETE => return Some(unsafe { self.force_get() }),
-                PANICKED => panic!("Once has panicked"),
+                PANICKED => panic!("Once previously poisoned by a panicked"),
                 _ => unsafe { unreachable() },
             }
         }
@@ -242,23 +319,33 @@ mod tests {
     }
 
     #[test]
-    fn try() {
+    fn get() {
         static INIT: Once<usize> = Once::new();
 
-        assert!(INIT.try().is_none());
+        assert!(INIT.get().is_none());
         INIT.call_once(|| 2);
-        assert_eq!(INIT.try().map(|r| *r), Some(2));
+        assert_eq!(INIT.get().map(|r| *r), Some(2));
     }
 
     #[test]
-    fn try_no_wait() {
+    fn get_no_wait() {
         static INIT: Once<usize> = Once::new();
 
-        assert!(INIT.try().is_none());
+        assert!(INIT.get().is_none());
         thread::spawn(move|| {
             INIT.call_once(|| loop { });
         });
-        assert!(INIT.try().is_none());
+        assert!(INIT.get().is_none());
+    }
+
+
+    #[test]
+    fn poll() {
+        static INIT: Once<usize> = Once::new();
+
+        assert!(INIT.poll().is_none());
+        INIT.call_once(|| 3);
+        assert_eq!(INIT.poll().map(|r| *r), Some(3));
     }
 
 
@@ -266,9 +353,15 @@ mod tests {
     fn wait() {
         static INIT: Once<usize> = Once::new();
 
-        assert!(INIT.wait().is_none());
+        std::thread::spawn(|| {
+            assert_eq!(*INIT.wait(), 3);
+            assert!(INIT.is_completed());
+        });
+
+        for _ in 0..4 { thread::yield_now() }
+
+        assert!(INIT.poll().is_none());
         INIT.call_once(|| 3);
-        assert_eq!(INIT.wait().map(|r| *r), Some(3));
     }
 
     #[test]

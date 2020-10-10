@@ -10,7 +10,7 @@ license = "MIT"
 repository = "https://github.com/mvdnes/spin-rs.git"
 documentation = "https://mvdnes.github.io/rust-docs/spin-rs/spin/index.html"
 keywords = ["spinlock", "mutex", "rwlock"]
-description = "Spin-based synchronisation primitives"
+description = "Spin-based synchronization primitives"
 
 [dependencies]
 lock_api = { version = "0.4", optional = true }

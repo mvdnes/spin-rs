@@ -5,16 +5,13 @@ use core::{
     fmt,
 };
 
-/// This type provides MUTual EXclusion based on spinning.
+/// A lock that provides mutually exclusive data access.
 ///
-/// # Description
+/// This lock behaves in a similar manner to its namesake `std::sync::Mutex` but uses
+/// spinning for synchronisation instead. Unlike its namespace, this lock does not
+/// track lock poisoning.
 ///
-/// The behaviour of these lock is similar to their namesakes in `std::sync`. they
-/// differ on the following:
-///
-/// - The lock will not be poisoned in case of failure;
-///
-/// # Simple examples
+/// # Example
 ///
 /// ```
 /// use spin;
@@ -73,7 +70,7 @@ pub struct Mutex<T: ?Sized> {
     data: UnsafeCell<T>,
 }
 
-/// A guard to which the protected data can be accessed
+/// A guard that provides mutable data access.
 ///
 /// When the guard falls out of scope it will release the lock.
 pub struct MutexGuard<'a, T: ?Sized + 'a> {
@@ -213,6 +210,12 @@ impl<T: ?Sized + Default> Default for Mutex<T> {
     }
 }
 
+impl<T> From<T> for Mutex<T> {
+    fn from(data: T) -> Self {
+        Self::new(data)
+    }
+}
+
 impl<'a, T: ?Sized> MutexGuard<'a, T> {
     /// Leak the lock guard, yielding a mutable reference to the underlying data.
     ///
@@ -221,15 +224,15 @@ impl<'a, T: ?Sized> MutexGuard<'a, T> {
     /// ```
     /// let mylock = spin::Mutex::new(0);
     ///
-    /// let data: &mut i32 = mylock.lock().leak();
+    /// let data: &mut i32 = spin::MutexGuard::leak(mylock.lock());
     ///
     /// *data = 1;
     /// assert_eq!(*data, 1);
     /// ```
     #[inline]
-    pub fn leak(self) -> &'a mut T {
-        let data = self.data as *mut _; // Keep it in pointer form temporarily to avoid double-aliasing
-        core::mem::forget(self);
+    pub fn leak(this: Self) -> &'a mut T {
+        let data = this.data as *mut _; // Keep it in pointer form temporarily to avoid double-aliasing
+        core::mem::forget(this);
         unsafe { &mut *data }
     }
 }
