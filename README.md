@@ -4,11 +4,11 @@
 [![Crates.io version](https://img.shields.io/crates/v/spin.svg)](https://crates.io/crates/spin)
 [![docs.rs](https://docs.rs/spin/badge.svg)](https://docs.rs/spin/)
 
-Spin-based synchronisation primitives.
+Spin-based synchronization primitives.
 
 This crate implements a variety of simple
 [spinlock](https://en.wikipedia.org/wiki/Spinlock)-like primitives with similar
-interfaces to those in `std::sync`. Because synchronisation uses spinning, the
+interfaces to those in `std::sync`. Because synchronization uses spinning, the
 primitives are suitable for use in `no_std` environments.
 
 Before deciding to use `spin`, we recommend reading
@@ -19,7 +19,7 @@ spinlocks. If you have access to `std`, it's likely that the primitives in
 
 ## Features
 
-- `Mutex`, `RwLock` and `Once` equivalents.
+- `Mutex`, `RwLock` and `Once` equivalents
 - Support for `no_std` environments
 - [`lock_api`](https://crates.io/crates/lock_api) compatibility
 - Upgradeable `RwLock` guards
