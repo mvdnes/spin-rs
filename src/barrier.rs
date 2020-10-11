@@ -12,10 +12,9 @@ use core::sync::atomic::{spin_loop_hint as cpu_relax};
 
 use crate::Mutex;
 
-/// A barrier enables multiple threads to synchronize the beginning
-/// of some computation.
+/// A primitive that synchronizes the execution of multiple threads.
 ///
-/// # Examples
+/// # Example
 ///
 /// ```
 /// use spin;
@@ -70,7 +69,8 @@ impl Barrier {
     /// Creates a new barrier that can block a given number of threads.
     ///
     /// A barrier will block `n`-1 threads which call [`wait`] and then wake up
-    /// all threads at once when the `n`th thread calls [`wait`].
+    /// all threads at once when the `n`th thread calls [`wait`]. A Barrier created
+    /// with n = 0 will behave identically to one created with n = 1.
     ///
     /// [`wait`]: #method.wait
     ///
