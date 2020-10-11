@@ -12,8 +12,8 @@ use core::{
 /// it is assigned a ticket, and it spins until its ticket is the next in line.
 /// When releasing the value, the next ticket will be processed.
 pub struct TicketMutex<T: ?Sized> {
-    next_ticket: AtomicUsize,
-    next_serving: AtomicUsize,
+    pub(crate) next_ticket: AtomicUsize,
+    pub(crate) next_serving: AtomicUsize,
     value: UnsafeCell<T>,
 }
 

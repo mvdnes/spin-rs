@@ -57,10 +57,7 @@ mod lazy;
 mod once;
 mod rw_lock;
 
-#[cfg(not(feature = "ticket_mutex"))]
-pub use mutex::{SpinMutex as Mutex, SpinMutexGuard as MutexGuard};
-#[cfg(feature = "ticket_mutex")]
-pub use mutex::{TicketMutex as Mutex, TicketMutexGuard as MutexGuard};
+pub use mutex::{Mutex, MutexGuard};
 
 /// Spin synchronisation primitives, but compatible with [`lock_api`](https://crates.io/crates/lock_api).
 #[cfg(feature = "lock_api1")]

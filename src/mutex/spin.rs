@@ -66,7 +66,7 @@ use core::{
 /// assert_eq!(answer, numthreads);
 /// ```
 pub struct SpinMutex<T: ?Sized> {
-    lock: AtomicBool,
+    pub(crate) lock: AtomicBool,
     data: UnsafeCell<T>,
 }
 
@@ -265,33 +265,6 @@ impl<'a, T: ?Sized> Drop for SpinMutexGuard<'a, T> {
     /// The dropping of the MutexGuard will release the lock it was created from.
     fn drop(&mut self) {
         self.lock.store(false, Ordering::Release);
-    }
-}
-
-#[cfg(feature = "lock_api1")]
-unsafe impl lock_api::RawMutex for Mutex<()> {
-    type GuardMarker = lock_api::GuardSend;
-
-    const INIT: Self = Self::new(());
-
-    fn lock(&self) {
-        // Prevent guard destructor running
-        core::mem::forget(Mutex::lock(self));
-    }
-
-    fn try_lock(&self) -> bool {
-        // Prevent guard destructor running
-        Mutex::try_lock(self)
-            .map(|g| core::mem::forget(g))
-            .is_some()
-    }
-
-    unsafe fn unlock(&self) {
-        self.force_unlock();
-    }
-
-    fn is_locked(&self) -> bool {
-        self.lock.load(Ordering::Relaxed)
     }
 }
 
