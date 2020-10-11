@@ -90,6 +90,12 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for TicketMutex<T> {
 }
 
 impl<T: ?Sized> TicketMutex<T> {
+    #[allow(dead_code)]
+    pub(crate) fn is_locked(&self) -> bool {
+        let ticket = self.next_ticket.load(Ordering::Relaxed) + 1;
+        self.next_serving.load(Ordering::Relaxed) != ticket
+    }
+
     /// Spins the thread until the value can be locked.
     ///
     /// The returned value can be used to modify the value,

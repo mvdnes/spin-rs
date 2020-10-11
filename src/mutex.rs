@@ -224,15 +224,12 @@ unsafe impl lock_api::RawMutex for Mutex<()> {
         self.force_unlock();
     }
 
+    #[allow(unused_imports)]
     fn is_locked(&self) -> bool {
         use core::sync::atomic::Ordering;
 
         helper!(
-            {
-                let this = &self.inner;
-                let ticket = this.next_ticket.load(Ordering::Acquire) + 1;
-                this.next_serving.load(Ordering::Acquire) != ticket
-            },
+            self.inner.is_locked(),
             self.inner.lock.load(Ordering::Relaxed)
         )
     }
