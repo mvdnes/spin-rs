@@ -114,6 +114,17 @@ impl<T: ?Sized> TicketMutex<T> {
         }
     }
 
+    /// Force unlock the ticket lock, by serving the next ticket.
+    ///
+    /// # Safety
+    ///
+    /// This is *extremely* unsafe if the lock is not held by the current
+    /// thread. However, this can be useful in some instances for exposing the
+    /// lock to FFI that doesn't know how to deal with RAII.
+    pub unsafe fn force_unlock(&self) {
+        self.next_serving.fetch_add(1, Ordering::Release);
+    }
+
     /// Tries to lock this lock. If it's already locked, `None` is returned,
     /// otherwise a guard that protects the data is returned.
     pub fn try_lock(&self) -> Option<TicketMutexGuard<T>> {
