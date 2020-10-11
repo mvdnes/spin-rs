@@ -1,150 +1,107 @@
+//! Implementation of two different Mutex versions, [`TicketMutex`] and [`SpinMutex`].
+//!
+//! The [`Mutex`] in the root of the crate, can be configured using the `ticket_mutex` feature.
+//! If it's enabled, [`TicketMutex`] and [`TicketMutexGuard`] will be re-exported as [`Mutex`]
+//! and [`MutexGuard`], otherwise the [`SpinMutex`] and guard will be re-exported.
+//!
+//! `ticket_mutex` is enabled by default.
+//!
+//! [`Mutex`]: ../struct.Mutex.html
+//! [`MutexGuard`]: ../struct.MutexGuard.html
+//! [`TicketMutex`]: ./struct.TicketMutex.html
+//! [`TicketMutexGuard`]: ./struct.TicketMutexGuard.html
+//! [`SpinMutex`]: ./struct.SpinMutex.html
+
+mod spin;
+pub use self::spin::*;
+
+mod ticket;
+pub use self::ticket::*;
+
 use core::{
-    cell::UnsafeCell,
-    ops::{Deref, DerefMut},
-    sync::atomic::{AtomicBool, Ordering, spin_loop_hint as cpu_relax},
     fmt,
+    ops::{Deref, DerefMut},
 };
 
-/// A lock that provides mutually exclusive data access.
+/// Macro for choosing one of two expressions,
+/// based on the feature flag `ticket_mutex`.
+macro_rules! helper {
+    ($one:expr, $two:expr) => {{
+        #[cfg(feature = "ticket_mutex")]
+        let inner = $one;
+        #[cfg(not(feature = "ticket_mutex"))]
+        let inner = $two;
+
+        inner
+    }};
+}
+
+/// A generic `Mutex`, that will use either a fully spin-based mutex,
+/// or a ticket lock, depending on the `ticket_mutex` feature, to guarantee mutual exclusion.
 ///
-/// This lock behaves in a similar manner to its namesake `std::sync::Mutex` but uses
-/// spinning for synchronisation instead. Unlike its namespace, this lock does not
-/// track lock poisoning.
+/// For more info see [`TicketMutex`] or [`SpinMutex`].
 ///
-/// # Example
-///
-/// ```
-/// use spin;
-/// let spin_mutex = spin::Mutex::new(0);
-///
-/// // Modify the data
-/// {
-///     let mut data = spin_mutex.lock();
-///     *data = 2;
-/// }
-///
-/// // Read the data
-/// let answer =
-/// {
-///     let data = spin_mutex.lock();
-///     *data
-/// };
-///
-/// assert_eq!(answer, 2);
-/// ```
-///
-/// # Thread-safety example
-///
-/// ```
-/// use spin;
-/// use std::sync::{Arc, Barrier};
-///
-/// let numthreads = 1000;
-/// let spin_mutex = Arc::new(spin::Mutex::new(0));
-///
-/// // We use a barrier to ensure the readout happens after all writing
-/// let barrier = Arc::new(Barrier::new(numthreads + 1));
-///
-/// for _ in (0..numthreads)
-/// {
-///     let my_barrier = barrier.clone();
-///     let my_lock = spin_mutex.clone();
-///     std::thread::spawn(move||
-///     {
-///         let mut guard = my_lock.lock();
-///         *guard += 1;
-///
-///         // Release the lock to prevent a deadlock
-///         drop(guard);
-///         my_barrier.wait();
-///     });
-/// }
-///
-/// barrier.wait();
-///
-/// let answer = { *spin_mutex.lock() };
-/// assert_eq!(answer, numthreads);
-/// ```
+/// [`TicketMutex`]: ./struct.TicketMutex.html
+/// [`SpinMutex`]: ./struct.SpinMutex.html
 pub struct Mutex<T: ?Sized> {
-    lock: AtomicBool,
-    data: UnsafeCell<T>,
+    #[cfg(feature = "ticket_mutex")]
+    inner: TicketMutex<T>,
+    #[cfg(not(feature = "ticket_mutex"))]
+    inner: SpinMutex<T>,
 }
 
-/// A guard that provides mutable data access.
-///
-/// When the guard falls out of scope it will release the lock.
-pub struct MutexGuard<'a, T: ?Sized + 'a> {
-    lock: &'a AtomicBool,
-    data: &'a mut T,
-}
-
-// Same unsafe impls as `std::sync::Mutex`
 unsafe impl<T: ?Sized + Send> Sync for Mutex<T> {}
 unsafe impl<T: ?Sized + Send> Send for Mutex<T> {}
 
+/// A generic guard that will protect some data access and
+/// uses either a ticket lock or a normal spin mutex.
+///
+/// For more info see [`TicketMutexGuard`] or [`SpinMutexGuard`].
+///
+/// [`TicketMutexGuard`]: ./struct.TicketMutexGuard.html
+/// [`SpinMutexGuard`]: ./struct.SpinMutexGuard.html
+pub struct MutexGuard<'a, T: 'a + ?Sized> {
+    #[cfg(feature = "ticket_mutex")]
+    inner: TicketMutexGuard<'a, T>,
+    #[cfg(not(feature = "ticket_mutex"))]
+    inner: SpinMutexGuard<'a, T>,
+}
+
 impl<T> Mutex<T> {
-    /// Creates a new spinlock wrapping the supplied data.
+    /// Creates a new `Mutex`.
     ///
-    /// May be used statically:
+    /// This method can be used in a static context.
     ///
-    /// ```
-    /// use spin;
+    /// See [`TicketMutex::new`] or [`SpinMutex::new`].
     ///
-    /// static MUTEX: spin::Mutex<()> = spin::Mutex::new(());
-    ///
-    /// fn demo() {
-    ///     let lock = MUTEX.lock();
-    ///     // do something with lock
-    ///     drop(lock);
-    /// }
-    /// ```
-    pub const fn new(user_data: T) -> Mutex<T> {
-        Mutex {
-            lock: AtomicBool::new(false),
-            data: UnsafeCell::new(user_data),
-        }
+    /// [`TicketMutex::new`]: ./struct.TicketMutex.html#method.new
+    /// [`SpinMutex::new`]: ./struct.SpinMutex.html#method.new
+    pub const fn new(value: T) -> Self {
+        let inner = helper!(TicketMutex::new(value), SpinMutex::new(value));
+        Self { inner }
     }
 
-    /// Consumes this mutex, returning the underlying data.
+    /// Consumes this `Mutex` and unwraps the underlying data.
+    ///
+    /// See [`TicketMutex::into_inner`] or [`SpinMutex::into_inner`].
+    ///
+    /// [`TicketMutex::into_inner`]: ./struct.TicketMutex.html#method.into_inner
+    /// [`SpinMutex::into_inner`]: ./struct.SpinMutex.html#method.into_inner
     pub fn into_inner(self) -> T {
-        // We know statically that there are no outstanding references to
-        // `self` so there's no need to lock.
-        let Mutex { data, .. } = self;
-        data.into_inner()
+        self.inner.into_inner()
     }
 }
 
-impl<T: ?Sized> Mutex<T>
-{
-    fn obtain_lock(&self) {
-        while self.lock.compare_and_swap(false, true, Ordering::Acquire) {
-            // Wait until the lock looks unlocked before retrying
-            while self.lock.load(Ordering::Relaxed) {
-                cpu_relax();
-            }
-        }
-    }
-
+impl<T: ?Sized> Mutex<T> {
     /// Locks the spinlock and returns a guard.
     ///
-    /// The returned value may be dereferenced for data access
-    /// and the lock will be dropped when the guard falls out of scope.
+    /// See [`TicketMutex::lock`] or [`SpinMutex::lock`].
     ///
-    /// ```
-    /// let mylock = spin::Mutex::new(0);
-    /// {
-    ///     let mut data = mylock.lock();
-    ///     // The lock is now locked and the data can be accessed
-    ///     *data += 1;
-    ///     // The lock is implicitly dropped
-    /// }
-    ///
-    /// ```
+    /// [`TicketMutex::lock`]: ./struct.TicketMutex.html#method.lock
+    /// [`SpinMutex::lock`]: ./struct.SpinMutex.html#method.lock
     pub fn lock(&self) -> MutexGuard<T> {
-        self.obtain_lock();
         MutexGuard {
-            lock: &self.lock,
-            data: unsafe { &mut *self.data.get() },
+            inner: self.inner.lock(),
         }
     }
 
@@ -156,57 +113,45 @@ impl<T: ?Sized> Mutex<T>
     /// thread. However, this can be useful in some instances for exposing the
     /// lock to FFI that doesn't know how to deal with RAII.
     ///
-    /// If the lock isn't held, this is a no-op.
+    /// See [`TicketMutex::force_unlock`] or [`SpinMutex::force_unlock`].
+    ///
+    /// [`TicketMutex::force_unlock`]: ./struct.TicketMutex.html#method.force_unlock
+    /// [`SpinMutex::force_unlock`]: ./struct.SpinMutex.html#method.force_unlock
     pub unsafe fn force_unlock(&self) {
-        self.lock.store(false, Ordering::Release);
+        self.inner.force_unlock()
     }
 
     /// Tries to lock the mutex. If it is already locked, it will return None. Otherwise it returns
     /// a guard within Some.
+    ///
+    /// See [`TicketMutex::try_lock`] or [`SpinMutex::try_lock`].
+    ///
+    /// [`TicketMutex::try_lock`]: ./struct.TicketMutex.html#method.try_lock
+    /// [`SpinMutex::try_lock`]: ./struct.SpinMutex.html#method.try_lock
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
-        if !self.lock.compare_and_swap(false, true, Ordering::Acquire) {
-            Some(MutexGuard {
-                lock: &self.lock,
-                data: unsafe { &mut *self.data.get() },
-            })
-        } else {
-            None
-        }
+        self.inner
+            .try_lock()
+            .map(|guard| MutexGuard { inner: guard })
     }
 
     /// Returns a mutable reference to the underlying data.
     ///
     /// Since this call borrows the `Mutex` mutably, no actual locking needs to
     /// take place -- the mutable borrow statically guarantees no locks exist.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let mut my_lock = spin::Mutex::new(0);
-    /// *my_lock.get_mut() = 10;
-    /// assert_eq!(*my_lock.lock(), 10);
-    /// ```
     pub fn get_mut(&mut self) -> &mut T {
-        // We know statically that there are no other references to `self`, so
-        // there's no need to lock the inner mutex.
-        unsafe { &mut *self.data.get() }
+        self.inner.get_mut()
     }
 }
 
 impl<T: ?Sized + fmt::Debug> fmt::Debug for Mutex<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.try_lock() {
-            Some(guard) => write!(f, "Mutex {{ data: ")
-				.and_then(|()| (&*guard).fmt(f))
-				.and_then(|()| write!(f, "}}")),
-            None => write!(f, "Mutex {{ <locked> }}"),
-        }
+        fmt::Debug::fmt(&self.inner, f)
     }
 }
 
 impl<T: ?Sized + Default> Default for Mutex<T> {
     fn default() -> Mutex<T> {
-        Mutex::new(Default::default())
+        Self::new(Default::default())
     }
 }
 
@@ -221,19 +166,16 @@ impl<'a, T: ?Sized> MutexGuard<'a, T> {
     ///
     /// Note that this function will permanently lock the original lock.
     ///
-    /// ```
-    /// let mylock = spin::Mutex::new(0);
+    /// See [`TicketMutexGuard::leak`] or [`SpinMutexGuard::leak`].
     ///
-    /// let data: &mut i32 = spin::MutexGuard::leak(mylock.lock());
-    ///
-    /// *data = 1;
-    /// assert_eq!(*data, 1);
-    /// ```
+    /// [`TicketMutexGuard::leak`]: ./struct.TicketMutex.html#method.leak
+    /// [`SpinMutexGuard::leak`]: ./struct.SpinMutex.html#method.leak
     #[inline]
     pub fn leak(this: Self) -> &'a mut T {
-        let data = this.data as *mut _; // Keep it in pointer form temporarily to avoid double-aliasing
-        core::mem::forget(this);
-        unsafe { &mut *data }
+        helper!(
+            TicketMutexGuard::leak(this.inner),
+            SpinMutexGuard::leak(this.inner)
+        )
     }
 }
 
@@ -251,17 +193,14 @@ impl<'a, T: ?Sized + fmt::Display> fmt::Display for MutexGuard<'a, T> {
 
 impl<'a, T: ?Sized> Deref for MutexGuard<'a, T> {
     type Target = T;
-    fn deref(&self) -> &T { self.data }
+    fn deref(&self) -> &T {
+        &*self.inner
+    }
 }
 
 impl<'a, T: ?Sized> DerefMut for MutexGuard<'a, T> {
-    fn deref_mut(&mut self) -> &mut T { self.data }
-}
-
-impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
-    /// The dropping of the MutexGuard will release the lock it was created from.
-    fn drop(&mut self) {
-        self.lock.store(false, Ordering::Release);
+    fn deref_mut(&mut self) -> &mut T {
+        &mut *self.inner
     }
 }
 
@@ -273,172 +212,25 @@ unsafe impl lock_api::RawMutex for Mutex<()> {
 
     fn lock(&self) {
         // Prevent guard destructor running
-        core::mem::forget(Mutex::lock(self));
+        core::mem::forget(Self::lock(self));
     }
 
     fn try_lock(&self) -> bool {
         // Prevent guard destructor running
-        Mutex::try_lock(self).map(|g| core::mem::forget(g)).is_some()
+        Self::try_lock(self).map(core::mem::forget).is_some()
     }
 
     unsafe fn unlock(&self) {
         self.force_unlock();
     }
 
+    #[allow(unused_imports)]
     fn is_locked(&self) -> bool {
-        self.lock.load(Ordering::Relaxed)
-    }
-}
+        use core::sync::atomic::Ordering;
 
-#[cfg(test)]
-mod tests {
-    use std::prelude::v1::*;
-
-    use std::sync::mpsc::channel;
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::thread;
-
-    use super::*;
-
-    #[derive(Eq, PartialEq, Debug)]
-    struct NonCopy(i32);
-
-    #[test]
-    fn smoke() {
-        let m = Mutex::new(());
-        drop(m.lock());
-        drop(m.lock());
-    }
-
-    #[test]
-    fn lots_and_lots() {
-        static M: Mutex<()>  = Mutex::new(());
-        static mut CNT: u32 = 0;
-        const J: u32 = 1000;
-        const K: u32 = 3;
-
-        fn inc() {
-            for _ in 0..J {
-                unsafe {
-                    let _g = M.lock();
-                    CNT += 1;
-                }
-            }
-        }
-
-        let (tx, rx) = channel();
-        for _ in 0..K {
-            let tx2 = tx.clone();
-            thread::spawn(move|| { inc(); tx2.send(()).unwrap(); });
-            let tx2 = tx.clone();
-            thread::spawn(move|| { inc(); tx2.send(()).unwrap(); });
-        }
-
-        drop(tx);
-        for _ in 0..2 * K {
-            rx.recv().unwrap();
-        }
-        assert_eq!(unsafe {CNT}, J * K * 2);
-    }
-
-    #[test]
-    fn try_lock() {
-        let mutex = Mutex::new(42);
-
-        // First lock succeeds
-        let a = mutex.try_lock();
-        assert_eq!(a.as_ref().map(|r| **r), Some(42));
-
-        // Additional lock failes
-        let b = mutex.try_lock();
-        assert!(b.is_none());
-
-        // After dropping lock, it succeeds again
-        ::core::mem::drop(a);
-        let c = mutex.try_lock();
-        assert_eq!(c.as_ref().map(|r| **r), Some(42));
-    }
-
-    #[test]
-    fn test_into_inner() {
-        let m = Mutex::new(NonCopy(10));
-        assert_eq!(m.into_inner(), NonCopy(10));
-    }
-
-    #[test]
-    fn test_into_inner_drop() {
-        struct Foo(Arc<AtomicUsize>);
-        impl Drop for Foo {
-            fn drop(&mut self) {
-                self.0.fetch_add(1, Ordering::SeqCst);
-            }
-        }
-        let num_drops = Arc::new(AtomicUsize::new(0));
-        let m = Mutex::new(Foo(num_drops.clone()));
-        assert_eq!(num_drops.load(Ordering::SeqCst), 0);
-        {
-            let _inner = m.into_inner();
-            assert_eq!(num_drops.load(Ordering::SeqCst), 0);
-        }
-        assert_eq!(num_drops.load(Ordering::SeqCst), 1);
-    }
-
-    #[test]
-    fn test_mutex_arc_nested() {
-        // Tests nested mutexes and access
-        // to underlying data.
-        let arc = Arc::new(Mutex::new(1));
-        let arc2 = Arc::new(Mutex::new(arc));
-        let (tx, rx) = channel();
-        let _t = thread::spawn(move|| {
-            let lock = arc2.lock();
-            let lock2 = lock.lock();
-            assert_eq!(*lock2, 1);
-            tx.send(()).unwrap();
-        });
-        rx.recv().unwrap();
-    }
-
-    #[test]
-    fn test_mutex_arc_access_in_unwind() {
-        let arc = Arc::new(Mutex::new(1));
-        let arc2 = arc.clone();
-        let _ = thread::spawn(move|| -> () {
-            struct Unwinder {
-                i: Arc<Mutex<i32>>,
-            }
-            impl Drop for Unwinder {
-                fn drop(&mut self) {
-                    *self.i.lock() += 1;
-                }
-            }
-            let _u = Unwinder { i: arc2 };
-            panic!();
-        }).join();
-        let lock = arc.lock();
-        assert_eq!(*lock, 2);
-    }
-
-    #[test]
-    fn test_mutex_unsized() {
-        let mutex: &Mutex<[i32]> = &Mutex::new([1, 2, 3]);
-        {
-            let b = &mut *mutex.lock();
-            b[0] = 4;
-            b[2] = 5;
-        }
-        let comp: &[i32] = &[4, 2, 5];
-        assert_eq!(&*mutex.lock(), comp);
-    }
-
-    #[test]
-    fn test_mutex_force_lock() {
-        let lock = Mutex::new(());
-        ::std::mem::forget(lock.lock());
-        unsafe {
-            lock.force_unlock();
-        }
-        assert!(lock.try_lock().is_some());
+        helper!(
+            self.inner.is_locked(),
+            self.inner.lock.load(Ordering::Relaxed)
+        )
     }
 }

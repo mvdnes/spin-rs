@@ -47,15 +47,17 @@
 #[macro_use]
 extern crate std;
 
-pub use mutex::*;
-pub use rw_lock::*;
-pub use once::*;
 pub use lazy::*;
+pub use once::*;
+pub use rw_lock::*;
 
-mod mutex;
-mod rw_lock;
-mod once;
+pub mod mutex;
+
 mod lazy;
+mod once;
+mod rw_lock;
+
+pub use mutex::{Mutex, MutexGuard};
 
 /// Spin synchronisation primitives, but compatible with [`lock_api`](https://crates.io/crates/lock_api).
 #[cfg(feature = "lock_api1")]
@@ -76,5 +78,6 @@ pub mod lock_api {
     pub type RwLockWriteGuard<'a, T> = lock_api::RwLockWriteGuard<'a, crate::RwLock<()>, T>;
 
     /// A guard that provides immutable data access but can be upgraded to [`RwLockWriteGuard`] (compatible with [`lock_api`](https://crates.io/crates/lock_api)).
-    pub type RwLockUpgradableReadGuard<'a, T> = lock_api::RwLockUpgradableReadGuard<'a, crate::RwLock<()>, T>;
+    pub type RwLockUpgradableReadGuard<'a, T> =
+        lock_api::RwLockUpgradableReadGuard<'a, crate::RwLock<()>, T>;
 }
