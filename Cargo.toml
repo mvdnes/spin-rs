@@ -16,4 +16,6 @@ description = "Spin-based synchronization primitives"
 lock_api = { version = "0.4", optional = true }
 
 [features]
+default = ["ticket_mutex"]
 lock_api1 = ["lock_api"]
+ticket_mutex = []

@@ -26,6 +26,27 @@ pub struct TicketMutexGuard<'a, T: ?Sized + 'a> {
     value: &'a mut T,
 }
 
+impl<'a, T: ?Sized> TicketMutexGuard<'a, T> {
+    /// Leak the lock guard, yielding a mutable reference to the underlying data.
+    ///
+    /// Note that this function will permanently lock the original lock.
+    ///
+    /// ```
+    /// let mylock = spin::Mutex::new(0);
+    ///
+    /// let data: &mut i32 = spin::MutexGuard::leak(mylock.lock());
+    ///
+    /// *data = 1;
+    /// assert_eq!(*data, 1);
+    /// ```
+    #[inline]
+    pub fn leak(this: Self) -> &'a mut T {
+        let data = this.value as *mut _; // Keep it in pointer form temporarily to avoid double-aliasing
+        core::mem::forget(this);
+        unsafe { &mut *data }
+    }
+}
+
 unsafe impl<T: ?Sized + Send> Sync for TicketMutex<T> {}
 unsafe impl<T: ?Sized + Send> Send for TicketMutex<T> {}
 
@@ -35,7 +56,7 @@ impl<T> TicketMutex<T> {
     /// This method can be used in static context.
     ///
     /// ```
-    /// static LOCK: spin::TicketMutex<i32> = spin::TicketMutex::new(123);
+    /// static LOCK: spin::mutex::TicketMutex<i32> = spin::mutex::TicketMutex::new(123);
     ///
     /// # fn main() {
     /// let value = LOCK.lock();
@@ -54,6 +75,17 @@ impl<T> TicketMutex<T> {
     /// Unwraps the inner value of this lock.
     pub fn into_inner(self) -> T {
         self.value.into_inner()
+    }
+}
+
+impl<T: ?Sized + fmt::Debug> fmt::Debug for TicketMutex<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.try_lock() {
+            Some(guard) => write!(f, "Mutex {{ data: ")
+                .and_then(|()| (&*guard).fmt(f))
+                .and_then(|()| write!(f, "}}")),
+            None => write!(f, "Mutex {{ <locked> }}"),
+        }
     }
 }
 

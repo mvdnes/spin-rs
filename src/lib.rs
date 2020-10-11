@@ -48,16 +48,20 @@
 extern crate std;
 
 pub use lazy::*;
-pub use mutex::*;
 pub use once::*;
 pub use rw_lock::*;
-pub use ticket::*;
+
+pub mod mutex;
 
 mod lazy;
-mod mutex;
 mod once;
 mod rw_lock;
-mod ticket;
+
+#[cfg(not(feature = "ticket_mutex"))]
+pub use mutex::{SpinMutex as Mutex, SpinMutexGuard as MutexGuard};
+#[cfg(feature = "ticket_mutex")]
+/// TEST
+pub use mutex::{TicketMutex as Mutex, TicketMutexGuard as MutexGuard};
 
 /// Spin synchronisation primitives, but compatible with [`lock_api`](https://crates.io/crates/lock_api).
 #[cfg(feature = "lock_api1")]
