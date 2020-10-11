@@ -92,7 +92,7 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for TicketMutex<T> {
 impl<T: ?Sized> TicketMutex<T> {
     #[allow(dead_code)]
     pub(crate) fn is_locked(&self) -> bool {
-        let ticket = self.next_ticket.load(Ordering::Relaxed) + 1;
+        let ticket = self.next_ticket.load(Ordering::Relaxed);
         self.next_serving.load(Ordering::Relaxed) != ticket
     }
 
@@ -358,5 +358,15 @@ mod tests {
         }
         let comp: &[i32] = &[4, 2, 5];
         assert_eq!(&*mutex.lock(), comp);
+    }
+
+    #[test]
+    fn is_locked() {
+        let mutex = TicketMutex::new(());
+        assert!(!mutex.is_locked());
+        let lock = mutex.lock();
+        assert!(mutex.is_locked());
+        drop(lock);
+        assert!(!mutex.is_locked());
     }
 }
