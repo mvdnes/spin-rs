@@ -2,7 +2,7 @@ use core::{
     cell::UnsafeCell,
     fmt,
     ops::{Deref, DerefMut},
-    sync::atomic::{spin_loop_hint, AtomicUsize, Ordering},
+    sync::atomic::{spin_loop_hint as cpu_relax, AtomicUsize, Ordering},
 };
 
 /// A ticket lock for mutual exclusion based on spinning.
@@ -11,7 +11,7 @@ use core::{
 /// When a thread tries to lock the values,
 /// it is assigned a ticket, and it spins until its ticket is the next in line.
 /// When releasing the value, the next ticket will be processed.
-pub struct TicketLock<T: ?Sized> {
+pub struct TicketMutex<T: ?Sized> {
     next_ticket: AtomicUsize,
     next_serving: AtomicUsize,
     value: UnsafeCell<T>,
@@ -20,28 +20,28 @@ pub struct TicketLock<T: ?Sized> {
 /// A guard that protects some data.
 ///
 /// When the guard is dropped, the next ticket will be processed.
-pub struct LockGuard<'a, T: ?Sized + 'a> {
+pub struct TicketMutexGuard<'a, T: ?Sized + 'a> {
     next_serving: &'a AtomicUsize,
     ticket: usize,
     value: &'a mut T,
 }
 
-unsafe impl<T: ?Sized + Send> Sync for TicketLock<T> {}
-unsafe impl<T: ?Sized + Send> Send for TicketLock<T> {}
+unsafe impl<T: ?Sized + Send> Sync for TicketMutex<T> {}
+unsafe impl<T: ?Sized + Send> Send for TicketMutex<T> {}
 
-impl<T> TicketLock<T> {
-    /// Creates a new `TicketLock` that wraps the given value.
+impl<T> TicketMutex<T> {
+    /// Creates a new `TicketMutex` that wraps the given value.
     ///
     /// This method can be used in static context.
     ///
     /// ```
-    /// static LOCK: spin::TicketLock<i32> = spin::TicketLock::new(123);
+    /// static LOCK: spin::TicketMutex<i32> = spin::TicketMutex::new(123);
     ///
     /// # fn main() {
     /// let value = LOCK.lock();
-    /// assert_eq!(value, 123);
+    /// assert_eq!(*value, 123);
     /// drop(value);
-    /// #}
+    /// # }
     /// ```
     pub const fn new(value: T) -> Self {
         Self {
@@ -57,19 +57,19 @@ impl<T> TicketLock<T> {
     }
 }
 
-impl<T: ?Sized> TicketLock<T> {
+impl<T: ?Sized> TicketMutex<T> {
     /// Spins the thread until the value can be locked.
     ///
     /// The returned value can be used to modify the value,
     /// and will be unlocked after dropping the return value.
-    pub fn lock(&self) -> LockGuard<T> {
+    pub fn lock(&self) -> TicketMutexGuard<T> {
         let ticket = self.next_ticket.fetch_add(1, Ordering::Relaxed);
 
-        while self.next_serving.load(Ordering::Relaxed) != ticket {
-            spin_loop_hint();
+        while self.next_serving.load(Ordering::Acquire) != ticket {
+            cpu_relax();
         }
 
-        LockGuard {
+        TicketMutexGuard {
             next_serving: &self.next_serving,
             ticket,
             // Safety
@@ -84,7 +84,7 @@ impl<T: ?Sized> TicketLock<T> {
 
     /// Tries to lock this lock. If it's already locked, `None` is returned,
     /// otherwise a guard that protects the data is returned.
-    pub fn try_lock(&self) -> Option<LockGuard<T>> {
+    pub fn try_lock(&self) -> Option<TicketMutexGuard<T>> {
         let ticket = self
             .next_ticket
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |ticket| {
@@ -95,7 +95,7 @@ impl<T: ?Sized> TicketLock<T> {
                 }
             });
 
-        ticket.ok().map(|ticket| LockGuard {
+        ticket.ok().map(|ticket| TicketMutexGuard {
             next_serving: &self.next_serving,
             ticket,
             // Safety
@@ -118,38 +118,44 @@ impl<T: ?Sized> TicketLock<T> {
     }
 }
 
-impl<T: ?Sized + Default> Default for TicketLock<T> {
-    fn default() -> TicketLock<T> {
-        TicketLock::new(Default::default())
+impl<T> From<T> for TicketMutex<T> {
+    fn from(value: T) -> Self {
+        Self::new(value)
     }
 }
 
-impl<'a, T: ?Sized + fmt::Debug> fmt::Debug for LockGuard<'a, T> {
+impl<T: ?Sized + Default> Default for TicketMutex<T> {
+    fn default() -> TicketMutex<T> {
+        TicketMutex::new(Default::default())
+    }
+}
+
+impl<'a, T: ?Sized + fmt::Debug> fmt::Debug for TicketMutexGuard<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
     }
 }
 
-impl<'a, T: ?Sized + fmt::Display> fmt::Display for LockGuard<'a, T> {
+impl<'a, T: ?Sized + fmt::Display> fmt::Display for TicketMutexGuard<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
     }
 }
 
-impl<'a, T: ?Sized> Deref for LockGuard<'a, T> {
+impl<'a, T: ?Sized> Deref for TicketMutexGuard<'a, T> {
     type Target = T;
     fn deref(&self) -> &T {
         self.value
     }
 }
 
-impl<'a, T: ?Sized> DerefMut for LockGuard<'a, T> {
+impl<'a, T: ?Sized> DerefMut for TicketMutexGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
         self.value
     }
 }
 
-impl<'a, T: ?Sized> Drop for LockGuard<'a, T> {
+impl<'a, T: ?Sized> Drop for TicketMutexGuard<'a, T> {
     fn drop(&mut self) {
         let new_ticket = self.ticket + 1;
         self.next_serving.store(new_ticket, Ordering::Release);
@@ -172,14 +178,14 @@ mod tests {
 
     #[test]
     fn smoke() {
-        let m = TicketLock::new(());
+        let m = TicketMutex::new(());
         drop(m.lock());
         drop(m.lock());
     }
 
     #[test]
     fn lots_and_lots() {
-        static M: TicketLock<()> = TicketLock::new(());
+        static M: TicketMutex<()> = TicketMutex::new(());
         static mut CNT: u32 = 0;
         const J: u32 = 1000;
         const K: u32 = 3;
@@ -216,7 +222,7 @@ mod tests {
 
     #[test]
     fn try_lock() {
-        let mutex = TicketLock::new(42);
+        let mutex = TicketMutex::new(42);
 
         // First lock succeeds
         let a = mutex.try_lock();
@@ -234,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_into_inner() {
-        let m = TicketLock::new(NonCopy(10));
+        let m = TicketMutex::new(NonCopy(10));
         assert_eq!(m.into_inner(), NonCopy(10));
     }
 
@@ -247,7 +253,7 @@ mod tests {
             }
         }
         let num_drops = Arc::new(AtomicUsize::new(0));
-        let m = TicketLock::new(Foo(num_drops.clone()));
+        let m = TicketMutex::new(Foo(num_drops.clone()));
         assert_eq!(num_drops.load(Ordering::SeqCst), 0);
         {
             let _inner = m.into_inner();
@@ -260,8 +266,8 @@ mod tests {
     fn test_mutex_arc_nested() {
         // Tests nested mutexes and access
         // to underlying data.
-        let arc = Arc::new(TicketLock::new(1));
-        let arc2 = Arc::new(TicketLock::new(arc));
+        let arc = Arc::new(TicketMutex::new(1));
+        let arc2 = Arc::new(TicketMutex::new(arc));
         let (tx, rx) = channel();
         let _t = thread::spawn(move || {
             let lock = arc2.lock();
@@ -274,11 +280,11 @@ mod tests {
 
     #[test]
     fn test_mutex_arc_access_in_unwind() {
-        let arc = Arc::new(TicketLock::new(1));
+        let arc = Arc::new(TicketMutex::new(1));
         let arc2 = arc.clone();
         let _ = thread::spawn(move || -> () {
             struct Unwinder {
-                i: Arc<TicketLock<i32>>,
+                i: Arc<TicketMutex<i32>>,
             }
             impl Drop for Unwinder {
                 fn drop(&mut self) {
@@ -295,7 +301,7 @@ mod tests {
 
     #[test]
     fn test_mutex_unsized() {
-        let mutex: &TicketLock<[i32]> = &TicketLock::new([1, 2, 3]);
+        let mutex: &TicketMutex<[i32]> = &TicketMutex::new([1, 2, 3]);
         {
             let b = &mut *mutex.lock();
             b[0] = 4;
