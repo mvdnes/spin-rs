@@ -2,7 +2,7 @@ use core::{
     cell::UnsafeCell,
     fmt,
     ops::{Deref, DerefMut},
-    sync::atomic::{spin_loop_hint as cpu_relax, AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 /// A [spin lock](https://en.m.wikipedia.org/wiki/Spinlock) providing mutually exclusive access to data.
@@ -143,7 +143,7 @@ impl<T: ?Sized> SpinMutex<T> {
         while self.lock.compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed).is_err() {
             // Wait until the lock looks unlocked before retrying
             while self.is_locked() {
-                cpu_relax();
+                crate::relax();
             }
         }
 

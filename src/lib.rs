@@ -1,3 +1,4 @@
+#![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
 #![deny(missing_docs)]
 
 //! This crate provides [spin-based](https://en.wikipedia.org/wiki/Spinlock) versions of the
@@ -40,12 +41,25 @@
 //! Conversely, the types in this crate do not have some of the features `std::sync` has:
 //!
 //! - Locks do not track [panic poisoning](https://doc.rust-lang.org/nomicon/poisoning.html).
+//!
+//! ## Feature flags
+//!
+//! The crate comes with a few feature flags that you may wish to use.
+//!
+//! - `lock_api` enabled support for [`lock_api`](https://crates.io/crates/lock_api)
+//!
+//! - `ticket_mutex` uses a ticket lock for the implementation of `Mutex`
+//!
+//! - `std` enables support for thread yielding instead of spinning
 
-#![no_std]
+#[cfg(any(test, feature = "std"))]
+extern crate core;
 
-#[cfg(test)]
-#[macro_use]
-extern crate std;
+// Choose a different relaxation strategy based on whether `std` is available or not.
+#[cfg(not(feature = "std"))]
+use core::sync::atomic::spin_loop_hint as relax;
+#[cfg(feature = "std")]
+use std::thread::yield_now as relax;
 
 pub mod lazy;
 pub mod mutex;

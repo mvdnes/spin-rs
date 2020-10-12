@@ -2,7 +2,7 @@ use core::{
     cell::UnsafeCell,
     fmt,
     ops::{Deref, DerefMut},
-    sync::atomic::{spin_loop_hint as cpu_relax, AtomicUsize, Ordering},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 /// A spin-based [ticket lock](https://en.wikipedia.org/wiki/Ticket_lock) providing mutually exclusive access to data.
@@ -159,7 +159,7 @@ impl<T: ?Sized> TicketMutex<T> {
         let ticket = self.next_ticket.fetch_add(1, Ordering::Relaxed);
 
         while self.next_serving.load(Ordering::Acquire) != ticket {
-            cpu_relax();
+            crate::relax();
         }
 
         TicketMutexGuard {

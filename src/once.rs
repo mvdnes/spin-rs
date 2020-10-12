@@ -3,7 +3,7 @@
 use core::{
     cell::UnsafeCell,
     mem::MaybeUninit,
-    sync::atomic::{AtomicUsize, Ordering, spin_loop_hint as cpu_relax},
+    sync::atomic::{AtomicUsize, Ordering},
     fmt,
 };
 
@@ -218,7 +218,7 @@ impl<T> Once<T> {
         loop {
             match self.poll() {
                 Some(x) => break x,
-                None => cpu_relax(),
+                None => crate::relax(),
             }
         }
     }
@@ -237,7 +237,7 @@ impl<T> Once<T> {
         loop {
             match self.state.load(Ordering::SeqCst) {
                 INCOMPLETE => return None,
-                RUNNING => cpu_relax(), // We spin
+                RUNNING => crate::relax(), // We spin
                 COMPLETE => return Some(unsafe { self.force_get() }),
                 PANICKED => panic!("Once previously poisoned by a panicked"),
                 _ => unsafe { unreachable() },

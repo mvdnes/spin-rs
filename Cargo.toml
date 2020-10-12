@@ -13,9 +13,10 @@ keywords = ["spinlock", "mutex", "rwlock"]
 description = "Spin-based synchronization primitives"
 
 [dependencies]
-lock_api = { version = "0.4", optional = true }
+lock_api_crate = { package = "lock_api", version = "0.4", optional = true }
 
 [features]
 default = ["ticket_mutex"]
-lock_api1 = ["lock_api"]
+lock_api = ["lock_api_crate"]
 ticket_mutex = []
+std = []

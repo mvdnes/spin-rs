@@ -3,7 +3,7 @@
 use core::{
     cell::UnsafeCell,
     ops::{Deref, DerefMut},
-    sync::atomic::{spin_loop_hint as cpu_relax, AtomicUsize, Ordering},
+    sync::atomic::{AtomicUsize, Ordering},
     fmt,
     mem,
 };
@@ -165,7 +165,7 @@ impl<T: ?Sized> RwLock<T> {
         loop {
             match self.try_read() {
                 Some(guard) => return guard,
-                None => cpu_relax(),
+                None => crate::relax(),
             }
         }
     }
@@ -305,7 +305,7 @@ impl<T: ?Sized> RwLock<T> {
         loop {
             match self.try_write_internal(false) {
                 Some(guard) => return guard,
-                None => cpu_relax(),
+                None => crate::relax(),
             }
         }
     }
@@ -341,7 +341,7 @@ impl<T: ?Sized> RwLock<T> {
         loop {
             match self.try_upgradeable_read() {
                 Some(guard) => return guard,
-                None => cpu_relax(),
+                None => crate::relax(),
             }
         }
     }
@@ -478,7 +478,7 @@ impl<'rwlock, T: ?Sized> RwLockUpgradableGuard<'rwlock, T> {
                 Err(e) => e,
             };
 
-            cpu_relax();
+            crate::relax();
         }
     }
 

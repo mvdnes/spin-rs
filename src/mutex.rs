@@ -1,4 +1,4 @@
-//! Locks that have similar behaviour to `std::sync::Mutex`.
+//! Locks that have the same behaviour as a mutex.
 //!
 //! The [`Mutex`] in the root of the crate, can be configured using the `ticket_mutex` feature.
 //! If it's enabled, [`TicketMutex`] and [`TicketMutexGuard`] will be re-exported as [`Mutex`]

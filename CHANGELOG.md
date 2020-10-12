@@ -15,11 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Once::poll`
 - `RwLock`, `Mutex` and `Once` now implement `From<T>`
 - `Lazy` type for lazy initialization
+- `TicketMutex`, an alternative mutex implementation
+- `std` feature flag to enable thread yielding instead of spinning
+- `Mutex::is_locked`/`SpinMutex::is_locked`/`TicketMutex::is_locked`
 
 ### Changed
 
 - `Once::wait` now spins even if initialization has not yet started
 - `Guard::leak` is now an associated function instead of a method
+- Improved the performance of `SpinMutex` by relaxing unnecessarily conservative
+  ordering requirements
 
 # [0.6.0] - 2020-10-08
 
