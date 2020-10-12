@@ -26,7 +26,7 @@ use core::{
 /// Macro for choosing one of two expressions,
 /// based on the feature flag `ticket_mutex`.
 macro_rules! helper {
-    ($one:expr, $two:expr) => {{
+    ($one:expr, $two:expr $(,)?) => {{
         #[cfg(feature = "ticket_mutex")]
         let inner = $one;
         #[cfg(not(feature = "ticket_mutex"))]
@@ -224,13 +224,10 @@ unsafe impl lock_api::RawMutex for Mutex<()> {
         self.force_unlock();
     }
 
-    #[allow(unused_imports)]
     fn is_locked(&self) -> bool {
-        use core::sync::atomic::Ordering;
-
         helper!(
             self.inner.is_locked(),
-            self.inner.lock.load(Ordering::Relaxed)
+            self.inner.is_locked(),
         )
     }
 }

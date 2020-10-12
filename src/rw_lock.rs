@@ -212,9 +212,8 @@ impl<T: ?Sized> RwLock<T> {
     ///
     /// # Safety
     ///
-    /// This is an approximation and should only be used in cases where usage heuristics are required. It should not
-    /// be used as a form of synchronisation because the return value is potentially incorrect the instant the function
-    /// is called.
+    /// This function provides no synchronization guarantees and so its result should be considered 'out of date'
+    /// the instant it is called. Do not use it for synchronization purposes. However, it may be useful as a heuristic.
     pub fn reader_count(&self) -> usize {
         let state = self.lock.load(Ordering::Relaxed);
         state / READER + (state & UPGRADED) / UPGRADED
@@ -226,9 +225,8 @@ impl<T: ?Sized> RwLock<T> {
     ///
     /// # Safety
     ///
-    /// This is an approximation and should only be used in cases where usage heuristics are required. It should not
-    /// be used as a form of synchronisation because the return value is potentially incorrect the instant the function
-    /// is called.
+    /// This function provides no synchronization guarantees and so its result should be considered 'out of date'
+    /// the instant it is called. Do not use it for synchronization purposes. However, it may be useful as a heuristic.
     pub fn writer_count(&self) -> usize {
         (self.lock.load(Ordering::Relaxed) & WRITER) / WRITER
     }

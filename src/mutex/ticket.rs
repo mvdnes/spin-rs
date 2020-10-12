@@ -90,8 +90,13 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for TicketMutex<T> {
 }
 
 impl<T: ?Sized> TicketMutex<T> {
-    #[allow(dead_code)]
-    pub(crate) fn is_locked(&self) -> bool {
+    /// Returns `true` if the lock is currently held.
+    ///
+    /// # Safety
+    ///
+    /// This function provides no synchronization guarantees and so its result should be considered 'out of date'
+    /// the instant it is called. Do not use it for synchronization purposes. However, it may be useful as a heuristic.
+    pub fn is_locked(&self) -> bool {
         let ticket = self.next_ticket.load(Ordering::Relaxed);
         self.next_serving.load(Ordering::Relaxed) != ticket
     }

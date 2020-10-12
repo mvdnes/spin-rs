@@ -115,13 +115,14 @@ impl<T> SpinMutex<T> {
 }
 
 impl<T: ?Sized> SpinMutex<T> {
-    fn obtain_lock(&self) {
-        while self.lock.compare_and_swap(false, true, Ordering::Acquire) {
-            // Wait until the lock looks unlocked before retrying
-            while self.lock.load(Ordering::Relaxed) {
-                cpu_relax();
-            }
-        }
+    /// Returns `true` if the lock is currently held.
+    ///
+    /// # Safety
+    ///
+    /// This function provides no synchronization guarantees and so its result should be considered 'out of date'
+    /// the instant it is called. Do not use it for synchronization purposes. However, it may be useful as a heuristic.
+    pub fn is_locked(&self) -> bool {
+        self.lock.load(Ordering::Relaxed)
     }
 
     /// Locks the spinlock and returns a guard.
@@ -140,7 +141,15 @@ impl<T: ?Sized> SpinMutex<T> {
     ///
     /// ```
     pub fn lock(&self) -> SpinMutexGuard<T> {
-        self.obtain_lock();
+        // Can fail to lock even if the spinlock is not locked. May be more efficient than `try_lock`
+        // when called in a loop.
+        while self.lock.compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed).is_err() {
+            // Wait until the lock looks unlocked before retrying
+            while self.is_locked() {
+                cpu_relax();
+            }
+        }
+
         SpinMutexGuard {
             lock: &self.lock,
             data: unsafe { &mut *self.data.get() },
@@ -163,7 +172,9 @@ impl<T: ?Sized> SpinMutex<T> {
     /// Tries to lock the mutex. If it is already locked, it will return None. Otherwise it returns
     /// a guard within Some.
     pub fn try_lock(&self) -> Option<SpinMutexGuard<T>> {
-        if !self.lock.compare_and_swap(false, true, Ordering::Acquire) {
+        // The reason for using a strong compare_exchange is explained here:
+        // https://github.com/Amanieu/parking_lot/pull/207#issuecomment-575869107
+        if self.lock.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).is_ok() {
             Some(SpinMutexGuard {
                 lock: &self.lock,
                 data: unsafe { &mut *self.data.get() },
@@ -265,6 +276,31 @@ impl<'a, T: ?Sized> Drop for SpinMutexGuard<'a, T> {
     /// The dropping of the MutexGuard will release the lock it was created from.
     fn drop(&mut self) {
         self.lock.store(false, Ordering::Release);
+    }
+}
+
+#[cfg(feature = "lock_api1")]
+unsafe impl lock_api::RawMutex for SpinMutex<()> {
+    type GuardMarker = lock_api::GuardSend;
+
+    const INIT: Self = Self::new(());
+
+    fn lock(&self) {
+        // Prevent guard destructor running
+        core::mem::forget(Self::lock(self));
+    }
+
+    fn try_lock(&self) -> bool {
+        // Prevent guard destructor running
+        Self::try_lock(self).map(core::mem::forget).is_some()
+    }
+
+    unsafe fn unlock(&self) {
+        self.force_unlock();
+    }
+
+    fn is_locked(&self) -> bool {
+        Self::is_locked(self)
     }
 }
 
