@@ -2,15 +2,63 @@ use core::{
     cell::UnsafeCell,
     fmt,
     ops::{Deref, DerefMut},
-    sync::atomic::{spin_loop_hint as cpu_relax, AtomicUsize, Ordering},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
-/// A ticket lock for mutual exclusion based on spinning.
+/// A spin-based [ticket lock](https://en.wikipedia.org/wiki/Ticket_lock) providing mutually exclusive access to data.
 ///
-/// A ticket lock is similair to a queue management system.
-/// When a thread tries to lock the values,
-/// it is assigned a ticket, and it spins until its ticket is the next in line.
-/// When releasing the value, the next ticket will be processed.
+/// A ticket lock is analagous to a queue management system for lock requests. When a thread tries to take a lock, it
+/// is assigned a 'ticket'. It then spins until its ticket becomes next in line. When the lock guard is released, the
+/// next ticket will be processed.
+///
+/// Ticket locks significantly reduce the worse-case performance of locking at the cost of slightly higher average-time
+/// overhead.
+///
+/// # Example
+///
+/// ```
+/// use spin;
+///
+/// let lock = spin::mutex::TicketMutex::new(0);
+///
+/// // Modify the data
+/// *lock.lock() = 2;
+///
+/// // Read the data
+/// let answer = *lock.lock();
+/// assert_eq!(answer, 2);
+/// ```
+///
+/// # Thread safety example
+///
+/// ```
+/// use spin;
+/// use std::sync::{Arc, Barrier};
+///
+/// let thread_count = 1000;
+/// let spin_mutex = Arc::new(spin::mutex::TicketMutex::new(0));
+///
+/// // We use a barrier to ensure the readout happens after all writing
+/// let barrier = Arc::new(Barrier::new(thread_count + 1));
+///
+/// for _ in (0..thread_count) {
+///     let my_barrier = barrier.clone();
+///     let my_lock = spin_mutex.clone();
+///     std::thread::spawn(move || {
+///         let mut guard = my_lock.lock();
+///         *guard += 1;
+///
+///         // Release the lock to prevent a deadlock
+///         drop(guard);
+///         my_barrier.wait();
+///     });
+/// }
+///
+/// barrier.wait();
+///
+/// let answer = { *spin_mutex.lock() };
+/// assert_eq!(answer, thread_count);
+/// ```
 pub struct TicketMutex<T: ?Sized> {
     pub(crate) next_ticket: AtomicUsize,
     pub(crate) next_serving: AtomicUsize,
@@ -26,44 +74,26 @@ pub struct TicketMutexGuard<'a, T: ?Sized + 'a> {
     value: &'a mut T,
 }
 
-impl<'a, T: ?Sized> TicketMutexGuard<'a, T> {
-    /// Leak the lock guard, yielding a mutable reference to the underlying data.
-    ///
-    /// Note that this function will permanently lock the original lock.
-    ///
-    /// ```
-    /// let mylock = spin::Mutex::new(0);
-    ///
-    /// let data: &mut i32 = spin::MutexGuard::leak(mylock.lock());
-    ///
-    /// *data = 1;
-    /// assert_eq!(*data, 1);
-    /// ```
-    #[inline]
-    pub fn leak(this: Self) -> &'a mut T {
-        let data = this.value as *mut _; // Keep it in pointer form temporarily to avoid double-aliasing
-        core::mem::forget(this);
-        unsafe { &mut *data }
-    }
-}
-
 unsafe impl<T: ?Sized + Send> Sync for TicketMutex<T> {}
 unsafe impl<T: ?Sized + Send> Send for TicketMutex<T> {}
 
 impl<T> TicketMutex<T> {
-    /// Creates a new `TicketMutex` that wraps the given value.
+    /// Creates a new [`TicketMutex`] wrapping the supplied data.
     ///
-    /// This method can be used in static context.
+    /// # Example
     ///
     /// ```
-    /// static LOCK: spin::mutex::TicketMutex<i32> = spin::mutex::TicketMutex::new(123);
+    /// use spin::mutex::TicketMutex;
     ///
-    /// # fn main() {
-    /// let value = LOCK.lock();
-    /// assert_eq!(*value, 123);
-    /// drop(value);
-    /// # }
+    /// static MUTEX: TicketMutex<()> = TicketMutex::new(());
+    ///
+    /// fn demo() {
+    ///     let lock = MUTEX.lock();
+    ///     // do something with lock
+    ///     drop(lock);
+    /// }
     /// ```
+    #[inline(always)]
     pub const fn new(value: T) -> Self {
         Self {
             next_ticket: AtomicUsize::new(0),
@@ -72,7 +102,15 @@ impl<T> TicketMutex<T> {
         }
     }
 
-    /// Unwraps the inner value of this lock.
+    /// Consumes this [`TicketMutex`] and unwraps the underlying data.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let lock = spin::mutex::TicketMutex::new(42);
+    /// assert_eq!(42, lock.into_inner());
+    /// ```
+    #[inline(always)]
     pub fn into_inner(self) -> T {
         self.value.into_inner()
     }
@@ -90,21 +128,38 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for TicketMutex<T> {
 }
 
 impl<T: ?Sized> TicketMutex<T> {
-    #[allow(dead_code)]
-    pub(crate) fn is_locked(&self) -> bool {
+    /// Returns `true` if the lock is currently held.
+    ///
+    /// # Safety
+    ///
+    /// This function provides no synchronization guarantees and so its result should be considered 'out of date'
+    /// the instant it is called. Do not use it for synchronization purposes. However, it may be useful as a heuristic.
+    #[inline(always)]
+    pub fn is_locked(&self) -> bool {
         let ticket = self.next_ticket.load(Ordering::Relaxed);
         self.next_serving.load(Ordering::Relaxed) != ticket
     }
 
-    /// Spins the thread until the value can be locked.
+    /// Locks the [`TicketMutex`] and returns a guard that permits access to the inner data.
     ///
-    /// The returned value can be used to modify the value,
-    /// and will be unlocked after dropping the return value.
+    /// The returned value may be dereferenced for data access
+    /// and the lock will be dropped when the guard falls out of scope.
+    ///
+    /// ```
+    /// let lock = spin::mutex::TicketMutex::new(0);
+    /// {
+    ///     let mut data = lock.lock();
+    ///     // The lock is now locked and the data can be accessed
+    ///     *data += 1;
+    ///     // The lock is implicitly dropped at the end of the scope
+    /// }
+    /// ```
+    #[inline(always)]
     pub fn lock(&self) -> TicketMutexGuard<T> {
         let ticket = self.next_ticket.fetch_add(1, Ordering::Relaxed);
 
         while self.next_serving.load(Ordering::Acquire) != ticket {
-            cpu_relax();
+            crate::relax();
         }
 
         TicketMutexGuard {
@@ -120,19 +175,33 @@ impl<T: ?Sized> TicketMutex<T> {
         }
     }
 
-    /// Force unlock the ticket lock, by serving the next ticket.
+    /// Force unlock this [`TicketMutex`], by serving the next ticket.
     ///
     /// # Safety
     ///
     /// This is *extremely* unsafe if the lock is not held by the current
     /// thread. However, this can be useful in some instances for exposing the
     /// lock to FFI that doesn't know how to deal with RAII.
+    #[inline(always)]
     pub unsafe fn force_unlock(&self) {
         self.next_serving.fetch_add(1, Ordering::Release);
     }
 
-    /// Tries to lock this lock. If it's already locked, `None` is returned,
-    /// otherwise a guard that protects the data is returned.
+    /// Try to lock this [`TicketMutex`], returning a lock guard if successful.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let lock = spin::mutex::TicketMutex::new(42);
+    ///
+    /// let maybe_guard = lock.try_lock();
+    /// assert!(maybe_guard.is_some());
+    ///
+    /// // `maybe_guard` is still held, so the second call fails
+    /// let maybe_guard2 = lock.try_lock();
+    /// assert!(maybe_guard2.is_none());
+    /// ```
+    #[inline(always)]
     pub fn try_lock(&self) -> Option<TicketMutexGuard<T>> {
         let ticket = self
             .next_ticket
@@ -157,13 +226,29 @@ impl<T: ?Sized> TicketMutex<T> {
 
     /// Returns a mutable reference to the underlying data.
     ///
-    /// This will not lock this lock, since this method borrows
-    /// this lock mutably so no locking is needed.
+    /// Since this call borrows the [`TicketMutex`] mutably, and a mutable reference is guaranteed to be exclusive in
+    /// Rust, no actual locking needs to take place -- the mutable borrow statically guarantees no locks exist. As
+    /// such, this is a 'zero-cost' operation.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let mut lock = spin::mutex::TicketMutex::new(0);
+    /// *lock.get_mut() = 10;
+    /// assert_eq!(*lock.lock(), 10);
+    /// ```
+    #[inline(always)]
     pub fn get_mut(&mut self) -> &mut T {
         // Safety:
         // We know that there are no other references to `self`,
         // so it's safe to return a exclusive reference to the value.
         unsafe { &mut *self.value.get() }
+    }
+}
+
+impl<T: ?Sized + Default> Default for TicketMutex<T> {
+    fn default() -> TicketMutex<T> {
+        TicketMutex::new(Default::default())
     }
 }
 
@@ -173,9 +258,24 @@ impl<T> From<T> for TicketMutex<T> {
     }
 }
 
-impl<T: ?Sized + Default> Default for TicketMutex<T> {
-    fn default() -> TicketMutex<T> {
-        TicketMutex::new(Default::default())
+impl<'a, T: ?Sized> TicketMutexGuard<'a, T> {
+    /// Leak the lock guard, yielding a mutable reference to the underlying data.
+    ///
+    /// Note that this function will permanently lock the original [`TicketMutex`].
+    ///
+    /// ```
+    /// let mylock = spin::mutex::TicketMutex::new(0);
+    ///
+    /// let data: &mut i32 = spin::mutex::TicketMutexGuard::leak(mylock.lock());
+    ///
+    /// *data = 1;
+    /// assert_eq!(*data, 1);
+    /// ```
+    #[inline(always)]
+    pub fn leak(this: Self) -> &'a mut T {
+        let data = this.value as *mut _; // Keep it in pointer form temporarily to avoid double-aliasing
+        core::mem::forget(this);
+        unsafe { &mut *data }
     }
 }
 

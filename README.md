@@ -24,6 +24,8 @@ spinlocks. If you have access to `std`, it's likely that the primitives in
 - Upgradeable `RwLock` guards
 - Guards can be sent and shared between threads
 - Guard leaking
+- `std` feature to enable yield to the OS scheduler in busy loops
+- `Mutex` can become a ticket lock
 
 ## Usage
 
@@ -63,6 +65,16 @@ fn main() {
     assert_eq!(*counter.lock(), 20);
 }
 ```
+
+## Feature flags
+
+The crate comes with a few feature flags that you may wish to use.
+
+- `lock_api` enabled support for [`lock_api`](https://crates.io/crates/lock_api)
+
+- `ticket_mutex` uses a ticket lock for the implementation of `Mutex`
+
+- `std` enables support for thread yielding instead of spinning
 
 ## Remarks
 

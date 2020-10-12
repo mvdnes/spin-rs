@@ -1,5 +1,7 @@
-// Implementation adapted from `SyncLazy` type of the standard library. See:
-// https://github.com/rust-lang/rust/blob/cae8bc1f2324e31c98cb32b8ed37032fc9cef405/library/std/src/lazy.rs
+//! Synchronization primitives for lazy evaluation.
+//!
+//! Implementation adapted from the `SyncLazy` type of the standard library. See:
+//! https://github.com/rust-lang/rust/blob/cae8bc1f2324e31c98cb32b8ed37032fc9cef405/library/std/src/lazy.rs
 
 use core::{cell::Cell, fmt, ops::Deref};
 use crate::Once;
