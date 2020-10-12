@@ -1,4 +1,4 @@
-//! Implementation of two different Mutex versions, [`TicketMutex`] and [`SpinMutex`].
+//! Locks that have similar behaviour to `std::sync::Mutex`.
 //!
 //! The [`Mutex`] in the root of the crate, can be configured using the `ticket_mutex` feature.
 //! If it's enabled, [`TicketMutex`] and [`TicketMutexGuard`] will be re-exported as [`Mutex`]
@@ -23,26 +23,66 @@ use core::{
     ops::{Deref, DerefMut},
 };
 
-/// Macro for choosing one of two expressions,
-/// based on the feature flag `ticket_mutex`.
-macro_rules! helper {
-    ($one:expr, $two:expr $(,)?) => {{
-        #[cfg(feature = "ticket_mutex")]
-        let inner = $one;
-        #[cfg(not(feature = "ticket_mutex"))]
-        let inner = $two;
+#[cfg(feature = "ticket_mutex")]
+type InnerMutex<T> = TicketMutex<T>;
+#[cfg(feature = "ticket_mutex")]
+type InnerMutexGuard<'a, T> = TicketMutexGuard<'a, T>;
 
-        inner
-    }};
-}
+#[cfg(not(feature = "ticket_mutex"))]
+type InnerMutex<T> = SpinMutex<T>;
+#[cfg(not(feature = "ticket_mutex"))]
+type InnerMutexGuard<'a, T> = SpinMutexGuard<'a, T>;
 
-/// A generic `Mutex`, that will use either a fully spin-based mutex,
-/// or a ticket lock, depending on the `ticket_mutex` feature, to guarantee mutual exclusion.
+/// A spin-based lock providing mutually exclusive access to data.
 ///
-/// For more info see [`TicketMutex`] or [`SpinMutex`].
+/// The implementation uses either a [`TicketMutex`] or a regular [`SpinMutex`] depending on whether the `ticket_mutex`
+/// feature flag is enabled.
 ///
-/// [`TicketMutex`]: ./struct.TicketMutex.html
-/// [`SpinMutex`]: ./struct.SpinMutex.html
+/// # Example
+///
+/// ```
+/// use spin;
+///
+/// let lock = spin::Mutex::new(0);
+///
+/// // Modify the data
+/// *lock.lock() = 2;
+///
+/// // Read the data
+/// let answer = *lock.lock();
+/// assert_eq!(answer, 2);
+/// ```
+///
+/// # Thread safety example
+///
+/// ```
+/// use spin;
+/// use std::sync::{Arc, Barrier};
+///
+/// let thread_count = 1000;
+/// let spin_mutex = Arc::new(spin::Mutex::new(0));
+///
+/// // We use a barrier to ensure the readout happens after all writing
+/// let barrier = Arc::new(Barrier::new(thread_count + 1));
+///
+/// for _ in (0..thread_count) {
+///     let my_barrier = barrier.clone();
+///     let my_lock = spin_mutex.clone();
+///     std::thread::spawn(move || {
+///         let mut guard = my_lock.lock();
+///         *guard += 1;
+///
+///         // Release the lock to prevent a deadlock
+///         drop(guard);
+///         my_barrier.wait();
+///     });
+/// }
+///
+/// barrier.wait();
+///
+/// let answer = { *spin_mutex.lock() };
+/// assert_eq!(answer, thread_count);
+/// ```
 pub struct Mutex<T: ?Sized> {
     #[cfg(feature = "ticket_mutex")]
     inner: TicketMutex<T>,
@@ -68,66 +108,100 @@ pub struct MutexGuard<'a, T: 'a + ?Sized> {
 }
 
 impl<T> Mutex<T> {
-    /// Creates a new `Mutex`.
+    /// Creates a new [`Mutex`] wrapping the supplied data.
     ///
-    /// This method can be used in a static context.
+    /// # Example
     ///
-    /// See [`TicketMutex::new`] or [`SpinMutex::new`].
+    /// ```
+    /// use spin::Mutex;
     ///
-    /// [`TicketMutex::new`]: ./struct.TicketMutex.html#method.new
-    /// [`SpinMutex::new`]: ./struct.SpinMutex.html#method.new
+    /// static MUTEX: Mutex<()> = Mutex::new(());
+    ///
+    /// fn demo() {
+    ///     let lock = MUTEX.lock();
+    ///     // do something with lock
+    ///     drop(lock);
+    /// }
+    /// ```
+    #[inline(always)]
     pub const fn new(value: T) -> Self {
-        let inner = helper!(TicketMutex::new(value), SpinMutex::new(value));
-        Self { inner }
+        Self { inner: InnerMutex::new(value) }
     }
 
-    /// Consumes this `Mutex` and unwraps the underlying data.
+    /// Consumes this [`Mutex`] and unwraps the underlying data.
     ///
-    /// See [`TicketMutex::into_inner`] or [`SpinMutex::into_inner`].
+    /// # Example
     ///
-    /// [`TicketMutex::into_inner`]: ./struct.TicketMutex.html#method.into_inner
-    /// [`SpinMutex::into_inner`]: ./struct.SpinMutex.html#method.into_inner
+    /// ```
+    /// let lock = spin::Mutex::new(42);
+    /// assert_eq!(42, lock.into_inner());
+    /// ```
+    #[inline(always)]
     pub fn into_inner(self) -> T {
         self.inner.into_inner()
     }
 }
 
 impl<T: ?Sized> Mutex<T> {
-    /// Locks the spinlock and returns a guard.
+    /// Returns `true` if the lock is currently held.
     ///
-    /// See [`TicketMutex::lock`] or [`SpinMutex::lock`].
+    /// # Safety
     ///
-    /// [`TicketMutex::lock`]: ./struct.TicketMutex.html#method.lock
-    /// [`SpinMutex::lock`]: ./struct.SpinMutex.html#method.lock
+    /// This function provides no synchronization guarantees and so its result should be considered 'out of date'
+    /// the instant it is called. Do not use it for synchronization purposes. However, it may be useful as a heuristic.
+    #[inline(always)]
+    pub fn is_locked(&self) -> bool {
+        self.inner.is_locked()
+    }
+
+    /// Locks the [`Mutex`] and returns a guard that permits access to the inner data.
+    ///
+    /// The returned value may be dereferenced for data access
+    /// and the lock will be dropped when the guard falls out of scope.
+    ///
+    /// ```
+    /// let lock = spin::Mutex::new(0);
+    /// {
+    ///     let mut data = lock.lock();
+    ///     // The lock is now locked and the data can be accessed
+    ///     *data += 1;
+    ///     // The lock is implicitly dropped at the end of the scope
+    /// }
+    /// ```
+    #[inline(always)]
     pub fn lock(&self) -> MutexGuard<T> {
         MutexGuard {
             inner: self.inner.lock(),
         }
     }
 
-    /// Force unlock the spinlock.
+    /// Force unlock this [`Mutex`].
     ///
     /// # Safety
     ///
     /// This is *extremely* unsafe if the lock is not held by the current
     /// thread. However, this can be useful in some instances for exposing the
     /// lock to FFI that doesn't know how to deal with RAII.
-    ///
-    /// See [`TicketMutex::force_unlock`] or [`SpinMutex::force_unlock`].
-    ///
-    /// [`TicketMutex::force_unlock`]: ./struct.TicketMutex.html#method.force_unlock
-    /// [`SpinMutex::force_unlock`]: ./struct.SpinMutex.html#method.force_unlock
+    #[inline(always)]
     pub unsafe fn force_unlock(&self) {
         self.inner.force_unlock()
     }
 
-    /// Tries to lock the mutex. If it is already locked, it will return None. Otherwise it returns
-    /// a guard within Some.
+    /// Try to lock this [`Mutex`], returning a lock guard if successful.
     ///
-    /// See [`TicketMutex::try_lock`] or [`SpinMutex::try_lock`].
+    /// # Example
     ///
-    /// [`TicketMutex::try_lock`]: ./struct.TicketMutex.html#method.try_lock
-    /// [`SpinMutex::try_lock`]: ./struct.SpinMutex.html#method.try_lock
+    /// ```
+    /// let lock = spin::Mutex::new(42);
+    ///
+    /// let maybe_guard = lock.try_lock();
+    /// assert!(maybe_guard.is_some());
+    ///
+    /// // `maybe_guard` is still held, so the second call fails
+    /// let maybe_guard2 = lock.try_lock();
+    /// assert!(maybe_guard2.is_none());
+    /// ```
+    #[inline(always)]
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
         self.inner
             .try_lock()
@@ -136,8 +210,18 @@ impl<T: ?Sized> Mutex<T> {
 
     /// Returns a mutable reference to the underlying data.
     ///
-    /// Since this call borrows the `Mutex` mutably, no actual locking needs to
-    /// take place -- the mutable borrow statically guarantees no locks exist.
+    /// Since this call borrows the [`Mutex`] mutably, and a mutable reference is guaranteed to be exclusive in Rust,
+    /// no actual locking needs to take place -- the mutable borrow statically guarantees no locks exist. As such,
+    /// this is a 'zero-cost' operation.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let mut lock = spin::Mutex::new(0);
+    /// *lock.get_mut() = 10;
+    /// assert_eq!(*lock.lock(), 10);
+    /// ```
+    #[inline(always)]
     pub fn get_mut(&mut self) -> &mut T {
         self.inner.get_mut()
     }
@@ -164,18 +248,19 @@ impl<T> From<T> for Mutex<T> {
 impl<'a, T: ?Sized> MutexGuard<'a, T> {
     /// Leak the lock guard, yielding a mutable reference to the underlying data.
     ///
-    /// Note that this function will permanently lock the original lock.
+    /// Note that this function will permanently lock the original [`Mutex`].
     ///
-    /// See [`TicketMutexGuard::leak`] or [`SpinMutexGuard::leak`].
+    /// ```
+    /// let mylock = spin::Mutex::new(0);
     ///
-    /// [`TicketMutexGuard::leak`]: ./struct.TicketMutex.html#method.leak
-    /// [`SpinMutexGuard::leak`]: ./struct.SpinMutex.html#method.leak
-    #[inline]
+    /// let data: &mut i32 = spin::MutexGuard::leak(mylock.lock());
+    ///
+    /// *data = 1;
+    /// assert_eq!(*data, 1);
+    /// ```
+    #[inline(always)]
     pub fn leak(this: Self) -> &'a mut T {
-        helper!(
-            TicketMutexGuard::leak(this.inner),
-            SpinMutexGuard::leak(this.inner)
-        )
+        InnerMutexGuard::leak(this.inner)
     }
 }
 
@@ -225,9 +310,6 @@ unsafe impl lock_api::RawMutex for Mutex<()> {
     }
 
     fn is_locked(&self) -> bool {
-        helper!(
-            self.inner.is_locked(),
-            self.inner.is_locked(),
-        )
+        self.inner.is_locked()
     }
 }

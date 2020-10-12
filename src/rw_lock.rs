@@ -1,3 +1,5 @@
+//! A lock that provides data access to either one writer or many readers.
+
 use core::{
     cell::UnsafeCell,
     ops::{Deref, DerefMut},

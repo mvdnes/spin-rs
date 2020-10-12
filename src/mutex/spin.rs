@@ -5,52 +5,39 @@ use core::{
     sync::atomic::{spin_loop_hint as cpu_relax, AtomicBool, Ordering},
 };
 
-/// A lock that provides mutually exclusive data access based on spinning.
-///
-/// This lock behaves in a similar manner to its namesake `std::sync::Mutex` but uses
-/// spinning for synchronisation instead. Unlike its namespace, this lock does not
-/// track lock poisoning.
+/// A [spin lock](https://en.m.wikipedia.org/wiki/Spinlock) providing mutually exclusive access to data.
 ///
 /// # Example
 ///
 /// ```
 /// use spin;
-/// let spin_mutex = spin::mutex::SpinMutex::new(0);
+///
+/// let lock = spin::mutex::SpinMutex::new(0);
 ///
 /// // Modify the data
-/// {
-///     let mut data = spin_mutex.lock();
-///     *data = 2;
-/// }
+/// *lock.lock() = 2;
 ///
 /// // Read the data
-/// let answer =
-/// {
-///     let data = spin_mutex.lock();
-///     *data
-/// };
-///
+/// let answer = *lock.lock();
 /// assert_eq!(answer, 2);
 /// ```
 ///
-/// # Thread-safety example
+/// # Thread safety example
 ///
 /// ```
 /// use spin;
 /// use std::sync::{Arc, Barrier};
 ///
-/// let numthreads = 1000;
+/// let thread_count = 1000;
 /// let spin_mutex = Arc::new(spin::mutex::SpinMutex::new(0));
 ///
 /// // We use a barrier to ensure the readout happens after all writing
-/// let barrier = Arc::new(Barrier::new(numthreads + 1));
+/// let barrier = Arc::new(Barrier::new(thread_count + 1));
 ///
-/// for _ in (0..numthreads)
-/// {
+/// for _ in (0..thread_count) {
 ///     let my_barrier = barrier.clone();
 ///     let my_lock = spin_mutex.clone();
-///     std::thread::spawn(move||
-///     {
+///     std::thread::spawn(move || {
 ///         let mut guard = my_lock.lock();
 ///         *guard += 1;
 ///
@@ -63,7 +50,7 @@ use core::{
 /// barrier.wait();
 ///
 /// let answer = { *spin_mutex.lock() };
-/// assert_eq!(answer, numthreads);
+/// assert_eq!(answer, thread_count);
 /// ```
 pub struct SpinMutex<T: ?Sized> {
     pub(crate) lock: AtomicBool,
@@ -83,14 +70,14 @@ unsafe impl<T: ?Sized + Send> Sync for SpinMutex<T> {}
 unsafe impl<T: ?Sized + Send> Send for SpinMutex<T> {}
 
 impl<T> SpinMutex<T> {
-    /// Creates a new spinlock wrapping the supplied data.
+    /// Creates a new [`SpinMutex`] wrapping the supplied data.
     ///
-    /// May be used statically:
+    /// # Example
     ///
     /// ```
-    /// use spin;
+    /// use spin::mutex::SpinMutex;
     ///
-    /// static MUTEX: spin::mutex::SpinMutex<()> = spin::mutex::SpinMutex::new(());
+    /// static MUTEX: SpinMutex<()> = SpinMutex::new(());
     ///
     /// fn demo() {
     ///     let lock = MUTEX.lock();
@@ -98,6 +85,7 @@ impl<T> SpinMutex<T> {
     ///     drop(lock);
     /// }
     /// ```
+    #[inline(always)]
     pub const fn new(user_data: T) -> SpinMutex<T> {
         SpinMutex {
             lock: AtomicBool::new(false),
@@ -105,7 +93,15 @@ impl<T> SpinMutex<T> {
         }
     }
 
-    /// Consumes this mutex, returning the underlying data.
+    /// Consumes this [`SpinMutex`] and unwraps the underlying data.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let lock = spin::mutex::SpinMutex::new(42);
+    /// assert_eq!(42, lock.into_inner());
+    /// ```
+    #[inline(always)]
     pub fn into_inner(self) -> T {
         // We know statically that there are no outstanding references to
         // `self` so there's no need to lock.
@@ -121,25 +117,26 @@ impl<T: ?Sized> SpinMutex<T> {
     ///
     /// This function provides no synchronization guarantees and so its result should be considered 'out of date'
     /// the instant it is called. Do not use it for synchronization purposes. However, it may be useful as a heuristic.
+    #[inline(always)]
     pub fn is_locked(&self) -> bool {
         self.lock.load(Ordering::Relaxed)
     }
 
-    /// Locks the spinlock and returns a guard.
+    /// Locks the [`SpinMutex`] and returns a guard that permits access to the inner data.
     ///
     /// The returned value may be dereferenced for data access
     /// and the lock will be dropped when the guard falls out of scope.
     ///
     /// ```
-    /// let mylock = spin::mutex::SpinMutex::new(0);
+    /// let lock = spin::mutex::SpinMutex::new(0);
     /// {
-    ///     let mut data = mylock.lock();
+    ///     let mut data = lock.lock();
     ///     // The lock is now locked and the data can be accessed
     ///     *data += 1;
-    ///     // The lock is implicitly dropped
+    ///     // The lock is implicitly dropped at the end of the scope
     /// }
-    ///
     /// ```
+    #[inline(always)]
     pub fn lock(&self) -> SpinMutexGuard<T> {
         // Can fail to lock even if the spinlock is not locked. May be more efficient than `try_lock`
         // when called in a loop.
@@ -156,21 +153,33 @@ impl<T: ?Sized> SpinMutex<T> {
         }
     }
 
-    /// Force unlock the spinlock.
+    /// Force unlock this [`SpinMutex`].
     ///
     /// # Safety
     ///
     /// This is *extremely* unsafe if the lock is not held by the current
     /// thread. However, this can be useful in some instances for exposing the
     /// lock to FFI that doesn't know how to deal with RAII.
-    ///
-    /// If the lock isn't held, this is a no-op.
+    #[inline(always)]
     pub unsafe fn force_unlock(&self) {
         self.lock.store(false, Ordering::Release);
     }
 
-    /// Tries to lock the mutex. If it is already locked, it will return None. Otherwise it returns
-    /// a guard within Some.
+    /// Try to lock this [`SpinMutex`], returning a lock guard if successful.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let lock = spin::mutex::SpinMutex::new(42);
+    ///
+    /// let maybe_guard = lock.try_lock();
+    /// assert!(maybe_guard.is_some());
+    ///
+    /// // `maybe_guard` is still held, so the second call fails
+    /// let maybe_guard2 = lock.try_lock();
+    /// assert!(maybe_guard2.is_none());
+    /// ```
+    #[inline(always)]
     pub fn try_lock(&self) -> Option<SpinMutexGuard<T>> {
         // The reason for using a strong compare_exchange is explained here:
         // https://github.com/Amanieu/parking_lot/pull/207#issuecomment-575869107
@@ -186,16 +195,18 @@ impl<T: ?Sized> SpinMutex<T> {
 
     /// Returns a mutable reference to the underlying data.
     ///
-    /// Since this call borrows the `Mutex` mutably, no actual locking needs to
-    /// take place -- the mutable borrow statically guarantees no locks exist.
+    /// Since this call borrows the [`SpinMutex`] mutably, and a mutable reference is guaranteed to be exclusive in
+    /// Rust, no actual locking needs to take place -- the mutable borrow statically guarantees no locks exist. As
+    /// such, this is a 'zero-cost' operation.
     ///
-    /// # Examples
+    /// # Example
     ///
     /// ```
-    /// let mut my_lock = spin::mutex::SpinMutex::new(0);
-    /// *my_lock.get_mut() = 10;
-    /// assert_eq!(*my_lock.lock(), 10);
+    /// let mut lock = spin::mutex::SpinMutex::new(0);
+    /// *lock.get_mut() = 10;
+    /// assert_eq!(*lock.lock(), 10);
     /// ```
+    #[inline(always)]
     pub fn get_mut(&mut self) -> &mut T {
         // We know statically that there are no other references to `self`, so
         // there's no need to lock the inner mutex.
@@ -229,17 +240,17 @@ impl<T> From<T> for SpinMutex<T> {
 impl<'a, T: ?Sized> SpinMutexGuard<'a, T> {
     /// Leak the lock guard, yielding a mutable reference to the underlying data.
     ///
-    /// Note that this function will permanently lock the original lock.
+    /// Note that this function will permanently lock the original [`SpinMutex`].
     ///
     /// ```
-    /// let mylock = spin::Mutex::new(0);
+    /// let mylock = spin::mutex::SpinMutex::new(0);
     ///
-    /// let data: &mut i32 = spin::MutexGuard::leak(mylock.lock());
+    /// let data: &mut i32 = spin::mutex::SpinMutexGuard::leak(mylock.lock());
     ///
     /// *data = 1;
     /// assert_eq!(*data, 1);
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn leak(this: Self) -> &'a mut T {
         let data = this.data as *mut _; // Keep it in pointer form temporarily to avoid double-aliasing
         core::mem::forget(this);

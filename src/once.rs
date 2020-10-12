@@ -1,3 +1,5 @@
+//! Synchronization primitives for one-time evaluation.
+
 use core::{
     cell::UnsafeCell,
     mem::MaybeUninit,

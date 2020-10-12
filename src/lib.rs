@@ -47,17 +47,15 @@
 #[macro_use]
 extern crate std;
 
-pub use lazy::*;
-pub use once::*;
-pub use rw_lock::*;
-
+pub mod lazy;
 pub mod mutex;
+pub mod once;
+pub mod rw_lock;
 
-mod lazy;
-mod once;
-mod rw_lock;
-
+pub use lazy::Lazy;
 pub use mutex::{Mutex, MutexGuard};
+pub use once::Once;
+pub use rw_lock::{RwLock, RwLockReadGuard, RwLockWriteGuard, RwLockUpgradableGuard};
 
 /// Spin synchronisation primitives, but compatible with [`lock_api`](https://crates.io/crates/lock_api).
 #[cfg(feature = "lock_api1")]
