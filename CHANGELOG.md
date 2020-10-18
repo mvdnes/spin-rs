@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+# [0.7.0] - 2020-10-18
+
+### Added
+
 - `Once::initialized`
 - `Once::get_mut`
 - `Once::try_into_inner`
@@ -18,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TicketMutex`, an alternative mutex implementation
 - `std` feature flag to enable thread yielding instead of spinning
 - `Mutex::is_locked`/`SpinMutex::is_locked`/`TicketMutex::is_locked`
+- `Barrier`
 
 ### Changed
 
