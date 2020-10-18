@@ -1,14 +1,20 @@
-// Copyright 2014 The Rust Project Developers. See the COPYRIGHT
-// file at the top-level directory of this distribution and at
-// http://rust-lang.org/COPYRIGHT.
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
+//! Synchronization primitive allowing multiple threads to synchronize the
+//! beginning of some computation.
+//!
+//! Implementation adopted the 'Barrier' type of the standard library. See:
+//! https://doc.rust-lang.org/std/sync/struct.Barrier.html
+//!
+//! Copyright 2014 The Rust Project Developers. See the COPYRIGHT
+//! file at the top-level directory of this distribution and at
+//! http://rust-lang.org/COPYRIGHT.
+//! 
+//! Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+//! http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+//! <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+//! option. This file may not be copied, modified, or distributed
+//! except according to those terms.
 
-use core::sync::atomic::{spin_loop_hint as cpu_relax};
+use core::sync::atomic::spin_loop_hint as cpu_relax;
 
 use crate::Mutex;
 
@@ -142,13 +148,13 @@ impl Barrier {
                 cpu_relax();
                 lock = self.lock.lock();
             }
-            return BarrierWaitResult(false);
+            BarrierWaitResult(false)
         } else {
             // this thread is the leader,
             //   and is responsible for incrementing the generation
             lock.count = 0;
             lock.generation_id = lock.generation_id.wrapping_add(1);
-            return BarrierWaitResult(true);
+            BarrierWaitResult(true)
         }
     }
 }
