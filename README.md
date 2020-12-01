@@ -93,5 +93,4 @@ accessed. Instead, they will 'spin' in a busy loop until the lock becomes availa
 
 ## License
 
-`spin` is distributed under the Apache License, Version 2.0, (See `LICENSE` or
-https://www.apache.org/licenses/LICENSE-2.0).
+`spin` is distributed under the MIT License, (See `LICENSE`).
