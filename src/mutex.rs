@@ -102,9 +102,9 @@ unsafe impl<T: ?Sized + Send> Send for Mutex<T> {}
 /// [`SpinMutexGuard`]: ./struct.SpinMutexGuard.html
 pub struct MutexGuard<'a, T: 'a + ?Sized> {
     #[cfg(feature = "ticket_mutex")]
-    pub(crate) inner: TicketMutexGuard<'a, T>,
+    inner: TicketMutexGuard<'a, T>,
     #[cfg(not(feature = "ticket_mutex"))]
-    pub(crate) inner: SpinMutexGuard<'a, T>,
+    inner: SpinMutexGuard<'a, T>,
 }
 
 impl<T> Mutex<T> {
