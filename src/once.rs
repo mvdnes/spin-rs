@@ -252,6 +252,17 @@ impl<T> From<T> for Once<T> {
     }
 }
 
+impl<T> Drop for Once<T> {
+    fn drop(&mut self) {
+        if self.state.load(Ordering::SeqCst) == COMPLETE {
+            unsafe {
+                //TODO: Use MaybeUninit::assume_init_drop once stabilised
+                core::ptr::drop_in_place((*self.data.get()).as_mut_ptr());
+            }
+        }
+    }
+}
+
 struct Finish<'a> {
     state: &'a AtomicUsize,
     panicked: bool,
@@ -399,5 +410,48 @@ mod tests {
         assert_eq!(a, 1);
         O.call_once(|| a += 1);
         assert_eq!(a, 1);
+    }
+
+    static mut CALLED: bool = false;
+
+    struct DropTest {}
+
+    impl Drop for DropTest {
+        fn drop(&mut self) {
+            unsafe {
+                CALLED = true;
+            }
+        }
+    }
+
+    #[test]
+    fn drop() {
+        unsafe {
+            CALLED = false;
+        }
+
+        {
+            let once = Once::new();
+            once.call_once(|| DropTest {});
+        }
+
+        assert!(unsafe {
+            CALLED
+        });
+    }
+
+    #[test]
+    fn skip_uninit_drop() {
+        unsafe {
+            CALLED = false;
+        }
+
+        {
+            let once = Once::<DropTest>::new();
+        }
+
+        assert!(unsafe {
+            !CALLED
+        });
     }
 }

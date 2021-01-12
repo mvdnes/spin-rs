@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+- `Fix Once leaking the inner object when it goes out of scope`
+
 # [0.7.0] - 2020-10-18
 
 ### Added
