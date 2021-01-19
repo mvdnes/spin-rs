@@ -30,7 +30,7 @@
 //! - Because spinning does not depend on the thread-driven model of `std::sync`, guards ([`MutexGuard`],
 //!   [`RwLockReadGuard`], [`RwLockWriteGuard`], etc.) may be sent and shared between threads.
 //!
-//! - [`RwLockUpgradableGuard`] supports being upgrades into a [`RwLockWriteGuard`].
+//! - [`RwLockUpgradableGuard`] supports being upgraded into a [`RwLockWriteGuard`].
 //!
 //! - Guards support [leaking](https://doc.rust-lang.org/nomicon/leaking.html).
 //!
@@ -46,7 +46,7 @@
 //!
 //! The crate comes with a few feature flags that you may wish to use.
 //!
-//! - `lock_api` enabled support for [`lock_api`](https://crates.io/crates/lock_api)
+//! - `lock_api` enables support for [`lock_api`](https://crates.io/crates/lock_api)
 //!
 //! - `ticket_mutex` uses a ticket lock for the implementation of `Mutex`
 //!

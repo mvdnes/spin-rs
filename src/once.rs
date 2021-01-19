@@ -1,4 +1,4 @@
-//! Synchronization primitives for one-time evaluation.
+    //! Synchronization primitives for one-time evaluation.
 
 use core::{
     cell::UnsafeCell,
@@ -139,11 +139,12 @@ impl<T> Once<T> {
         let mut status = self.state.load(Ordering::SeqCst);
 
         if status == INCOMPLETE {
-            status = self.state.compare_and_swap(
+            status = self.state.compare_exchange(
                 INCOMPLETE,
                 RUNNING,
                 Ordering::SeqCst,
-            );
+                Ordering::SeqCst,
+            ).unwrap_or_else(|x| x);
 
             if status == INCOMPLETE { // We init
                 // We use a guard (Finish) to catch panics caused by builder
@@ -178,6 +179,23 @@ impl<T> Once<T> {
         }
     }
 
+    /// Returns a reference to the inner value on the unchecked assumption that the  [`Once`] has been initialized.
+    ///
+    /// # Safety
+    ///
+    /// This is *extremely* unsafe if the `Once` has not already been initialized because a reference to uninitialized
+    /// memory will be returned, immediately triggering undefined behaviour (even if the reference goes unused).
+    /// However, this can be useful in some instances for exposing the `Once` to FFI or when the overhead of atomically
+    /// checking initialization is unacceptable and the `Once` has already been initialized.
+    pub unsafe fn get_unchecked(&self) -> &T {
+        debug_assert_eq!(
+            self.state.load(Ordering::SeqCst),
+            COMPLETE,
+            "Attempted to access an uninitialized Once. If this was run without debug checks, this would be undefined behaviour. This is a serious bug and you must fix it.",
+        );
+        self.force_get()
+    }
+
     /// Returns a mutable reference to the inner value if the [`Once`] has been initialized.
     ///
     /// Because this method requires a mutable reference to the [`Once`], no synchronization
@@ -191,7 +209,7 @@ impl<T> Once<T> {
 
     /// Returns a the inner value if the [`Once`] has been initialized.
     ///
-    /// Because this method requires ownershup of the [`Once`], no synchronization overhead
+    /// Because this method requires ownership of the [`Once`], no synchronization overhead
     /// is required to access the inner value. In effect, it is zero-cost.
     pub fn try_into_inner(mut self) -> Option<T> {
         match *self.state.get_mut() {
@@ -425,7 +443,7 @@ mod tests {
     }
 
     #[test]
-    fn drop() {
+    fn drop_occurs() {
         unsafe {
             CALLED = false;
         }
@@ -446,9 +464,8 @@ mod tests {
             CALLED = false;
         }
 
-        {
-            let once = Once::<DropTest>::new();
-        }
+        let once = Once::<DropTest>::new();
+        drop(once);
 
         assert!(unsafe {
             !CALLED
