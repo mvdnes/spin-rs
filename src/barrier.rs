@@ -7,16 +7,14 @@
 //! Copyright 2014 The Rust Project Developers. See the COPYRIGHT
 //! file at the top-level directory of this distribution and at
 //! http://rust-lang.org/COPYRIGHT.
-//! 
+//!
 //! Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 //! http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
 //! <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 //! option. This file may not be copied, modified, or distributed
 //! except according to those terms.
 
-use core::sync::atomic::spin_loop_hint as cpu_relax;
-
-use crate::Mutex;
+use crate::{Mutex, RelaxStrategy, Spin};
 
 /// A primitive that synchronizes the execution of multiple threads.
 ///
@@ -44,8 +42,8 @@ use crate::Mutex;
 ///     handle.join().unwrap();
 /// }
 /// ```
-pub struct Barrier {
-    lock: Mutex<BarrierState>,
+pub struct Barrier<R = Spin> {
+    lock: Mutex<BarrierState, R>,
     num_threads: usize,
 }
 
@@ -71,32 +69,7 @@ struct BarrierState {
 /// ```
 pub struct BarrierWaitResult(bool);
 
-impl Barrier {
-    /// Creates a new barrier that can block a given number of threads.
-    ///
-    /// A barrier will block `n`-1 threads which call [`wait`] and then wake up
-    /// all threads at once when the `n`th thread calls [`wait`]. A Barrier created
-    /// with n = 0 will behave identically to one created with n = 1.
-    ///
-    /// [`wait`]: #method.wait
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use spin;
-    ///
-    /// let barrier = spin::Barrier::new(10);
-    /// ```
-    pub const fn new(n: usize) -> Barrier {
-        Barrier {
-            lock: Mutex::new(BarrierState {
-                count: 0,
-                generation_id: 0,
-            }),
-            num_threads: n,
-        }
-    }
-
+impl<R: RelaxStrategy> Barrier<R> {
     /// Blocks the current thread until all threads have rendezvoused here.
     ///
     /// Barriers are re-usable after all threads have rendezvoused once, and can
@@ -145,7 +118,7 @@ impl Barrier {
             while local_gen == lock.generation_id &&
                 lock.count < self.num_threads {
                 drop(lock);
-                cpu_relax();
+                R::relax();
                 lock = self.lock.lock();
             }
             BarrierWaitResult(false)
@@ -155,6 +128,33 @@ impl Barrier {
             lock.count = 0;
             lock.generation_id = lock.generation_id.wrapping_add(1);
             BarrierWaitResult(true)
+        }
+    }
+}
+
+impl<R> Barrier<R> {
+    /// Creates a new barrier that can block a given number of threads.
+    ///
+    /// A barrier will block `n`-1 threads which call [`wait`] and then wake up
+    /// all threads at once when the `n`th thread calls [`wait`]. A Barrier created
+    /// with n = 0 will behave identically to one created with n = 1.
+    ///
+    /// [`wait`]: #method.wait
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use spin;
+    ///
+    /// let barrier = spin::Barrier::new(10);
+    /// ```
+    pub const fn new(n: usize) -> Self {
+        Self {
+            lock: Mutex::new(BarrierState {
+                count: 0,
+                generation_id: 0,
+            }),
+            num_threads: n,
         }
     }
 }
@@ -187,7 +187,7 @@ mod tests {
     use std::sync::Arc;
     use std::thread;
 
-    use super::Barrier;
+    type Barrier = super::Barrier;
 
     fn use_barrier(n: usize, barrier: Arc<Barrier>) {
         let (tx, rx) = channel();

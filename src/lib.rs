@@ -1,4 +1,5 @@
 #![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 
 //! This crate provides [spin-based](https://en.wikipedia.org/wiki/Spinlock) versions of the
@@ -55,23 +56,21 @@
 #[cfg(any(test, feature = "std"))]
 extern crate core;
 
-// Choose a different relaxation strategy based on whether `std` is available or not.
-#[cfg(not(feature = "std"))]
-use core::sync::atomic::spin_loop_hint as relax;
-#[cfg(feature = "std")]
-use std::thread::yield_now as relax;
-
 pub mod barrier;
 pub mod lazy;
 pub mod mutex;
 pub mod once;
 pub mod rw_lock;
+pub mod relax;
 
 pub use barrier::Barrier;
 pub use lazy::Lazy;
 pub use mutex::{Mutex, MutexGuard};
 pub use once::Once;
 pub use rw_lock::{RwLock, RwLockReadGuard, RwLockWriteGuard, RwLockUpgradableGuard};
+pub use relax::{Spin, RelaxStrategy};
+#[cfg(feature = "std")]
+pub use relax::Yield;
 
 /// Spin synchronisation primitives, but compatible with [`lock_api`](https://crates.io/crates/lock_api).
 #[cfg(feature = "lock_api1")]
