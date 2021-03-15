@@ -85,21 +85,20 @@ pub struct RwLockReadGuard<'a, T: 'a + ?Sized> {
 /// A guard that provides mutable data access.
 ///
 /// When the guard falls out of scope it will release the lock.
-pub struct RwLockWriteGuard<'a, T: 'a + ?Sized, R> {
+pub struct RwLockWriteGuard<'a, T: 'a + ?Sized, R = Spin> {
     phantom: PhantomData<R>,
     inner: &'a RwLock<T, R>,
     data: &'a mut T,
 }
 
-/// A guard that provides immutable data access but can be upgraded
-/// to [`RwLockWriteGuard`].
+/// A guard that provides immutable data access but can be upgraded to [`RwLockWriteGuard`].
 ///
 /// No writers or other upgradeable guards can exist while this is in scope. New reader
 /// creation is prevented (to alleviate writer starvation) but there may be existing readers
 /// when the lock is acquired.
 ///
 /// When the guard falls out of scope it will release the lock.
-pub struct RwLockUpgradableGuard<'a, T: 'a + ?Sized, R> {
+pub struct RwLockUpgradableGuard<'a, T: 'a + ?Sized, R = Spin> {
     phantom: PhantomData<R>,
     inner: &'a RwLock<T, R>,
     data: &'a T,
@@ -734,9 +733,9 @@ fn compare_exchange(
     }
 }
 
-#[cfg(feature = "lock_api1")]
-unsafe impl lock_api::RawRwLock for RwLock<()> {
-    type GuardMarker = lock_api::GuardSend;
+#[cfg(feature = "lock_api")]
+unsafe impl<R: RelaxStrategy> lock_api_crate::RawRwLock for RwLock<(), R> {
+    type GuardMarker = lock_api_crate::GuardSend;
 
     const INIT: Self = Self::new(());
 
@@ -786,8 +785,8 @@ unsafe impl lock_api::RawRwLock for RwLock<()> {
     }
 }
 
-#[cfg(feature = "lock_api1")]
-unsafe impl lock_api::RawRwLockUpgrade for RwLock<()> {
+#[cfg(feature = "lock_api")]
+unsafe impl<R: RelaxStrategy> lock_api_crate::RawRwLockUpgrade for RwLock<(), R> {
     #[inline(always)]
     fn lock_upgradable(&self) {
         // Prevent guard destructor running
@@ -827,8 +826,8 @@ unsafe impl lock_api::RawRwLockUpgrade for RwLock<()> {
     }
 }
 
-#[cfg(feature = "lock_api1")]
-unsafe impl lock_api::RawRwLockDowngrade for RwLock<()> {
+#[cfg(feature = "lock_api")]
+unsafe impl<R: RelaxStrategy> lock_api_crate::RawRwLockDowngrade for RwLock<(), R> {
     unsafe fn downgrade(&self) {
         let tmp_guard = RwLockWriteGuard {
             inner: self,

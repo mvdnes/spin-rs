@@ -4,13 +4,14 @@
 //! If it's enabled, [`TicketMutex`] and [`TicketMutexGuard`] will be re-exported as [`Mutex`]
 //! and [`MutexGuard`], otherwise the [`SpinMutex`] and guard will be re-exported.
 //!
-//! `ticket_mutex` is enabled by default.
+//! `ticket_mutex` is disabled by default.
 //!
 //! [`Mutex`]: ../struct.Mutex.html
 //! [`MutexGuard`]: ../struct.MutexGuard.html
 //! [`TicketMutex`]: ./struct.TicketMutex.html
 //! [`TicketMutexGuard`]: ./struct.TicketMutexGuard.html
 //! [`SpinMutex`]: ./struct.SpinMutex.html
+//! [`SpinMutexGuard`]: ./struct.SpinMutexGuard.html
 
 mod spin;
 pub use self::spin::*;
@@ -286,9 +287,9 @@ impl<'a, T: ?Sized> DerefMut for MutexGuard<'a, T> {
     }
 }
 
-#[cfg(feature = "lock_api1")]
-unsafe impl<R: RelaxStrategy> lock_api::RawMutex for Mutex<(), R> {
-    type GuardMarker = lock_api::GuardSend;
+#[cfg(feature = "lock_api")]
+unsafe impl<R: RelaxStrategy> lock_api_crate::RawMutex for Mutex<(), R> {
+    type GuardMarker = lock_api_crate::GuardSend;
 
     const INIT: Self = Self::new(());
 

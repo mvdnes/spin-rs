@@ -21,7 +21,7 @@ use crate::{RelaxStrategy, Spin};
 /// ```
 /// use spin;
 ///
-/// let lock = spin::mutex::TicketMutex::new(0);
+/// let lock = spin::mutex::TicketMutex::<_>::new(0);
 ///
 /// // Modify the data
 /// *lock.lock() = 2;
@@ -38,7 +38,7 @@ use crate::{RelaxStrategy, Spin};
 /// use std::sync::{Arc, Barrier};
 ///
 /// let thread_count = 1000;
-/// let spin_mutex = Arc::new(spin::mutex::TicketMutex::new(0));
+/// let spin_mutex = Arc::new(spin::mutex::TicketMutex::<_>::new(0));
 ///
 /// // We use a barrier to ensure the readout happens after all writing
 /// let barrier = Arc::new(Barrier::new(thread_count + 1));
@@ -88,7 +88,7 @@ impl<T, R> TicketMutex<T, R> {
     /// ```
     /// use spin::mutex::TicketMutex;
     ///
-    /// static MUTEX: TicketMutex<()> = TicketMutex::new(());
+    /// static MUTEX: TicketMutex<()> = TicketMutex::<_>::new(());
     ///
     /// fn demo() {
     ///     let lock = MUTEX.lock();
@@ -111,7 +111,7 @@ impl<T, R> TicketMutex<T, R> {
     /// # Example
     ///
     /// ```
-    /// let lock = spin::mutex::TicketMutex::new(42);
+    /// let lock = spin::mutex::TicketMutex::<_>::new(42);
     /// assert_eq!(42, lock.into_inner());
     /// ```
     #[inline(always)]
@@ -138,7 +138,7 @@ impl<T: ?Sized, R: RelaxStrategy> TicketMutex<T, R> {
     /// and the lock will be dropped when the guard falls out of scope.
     ///
     /// ```
-    /// let lock = spin::mutex::TicketMutex::new(0);
+    /// let lock = spin::mutex::TicketMutex::<_>::new(0);
     /// {
     ///     let mut data = lock.lock();
     ///     // The lock is now locked and the data can be accessed
@@ -198,7 +198,7 @@ impl<T: ?Sized, R> TicketMutex<T, R> {
     /// # Example
     ///
     /// ```
-    /// let lock = spin::mutex::TicketMutex::new(42);
+    /// let lock = spin::mutex::TicketMutex::<_>::new(42);
     ///
     /// let maybe_guard = lock.try_lock();
     /// assert!(maybe_guard.is_some());
@@ -239,7 +239,7 @@ impl<T: ?Sized, R> TicketMutex<T, R> {
     /// # Example
     ///
     /// ```
-    /// let mut lock = spin::mutex::TicketMutex::new(0);
+    /// let mut lock = spin::mutex::TicketMutex::<_>::new(0);
     /// *lock.get_mut() = 10;
     /// assert_eq!(*lock.lock(), 10);
     /// ```
@@ -270,7 +270,7 @@ impl<'a, T: ?Sized> TicketMutexGuard<'a, T> {
     /// Note that this function will permanently lock the original [`TicketMutex`].
     ///
     /// ```
-    /// let mylock = spin::mutex::TicketMutex::new(0);
+    /// let mylock = spin::mutex::TicketMutex::<_>::new(0);
     ///
     /// let data: &mut i32 = spin::mutex::TicketMutexGuard::leak(mylock.lock());
     ///
@@ -317,9 +317,9 @@ impl<'a, T: ?Sized> Drop for TicketMutexGuard<'a, T> {
     }
 }
 
-#[cfg(feature = "lock_api1")]
-unsafe impl<R: RelaxStrategy> lock_api::RawMutex for TicketMutex<(), R> {
-    type GuardMarker = lock_api::GuardSend;
+#[cfg(feature = "lock_api")]
+unsafe impl<R: RelaxStrategy> lock_api_crate::RawMutex for TicketMutex<(), R> {
+    type GuardMarker = lock_api_crate::GuardSend;
 
     const INIT: Self = Self::new(());
 
@@ -358,14 +358,14 @@ mod tests {
 
     #[test]
     fn smoke() {
-        let m = TicketMutex::new(());
+        let m = TicketMutex::<_>::new(());
         drop(m.lock());
         drop(m.lock());
     }
 
     #[test]
     fn lots_and_lots() {
-        static M: TicketMutex<()> = TicketMutex::new(());
+        static M: TicketMutex<()> = TicketMutex::<_>::new(());
         static mut CNT: u32 = 0;
         const J: u32 = 1000;
         const K: u32 = 3;
@@ -402,7 +402,7 @@ mod tests {
 
     #[test]
     fn try_lock() {
-        let mutex = TicketMutex::new(42);
+        let mutex = TicketMutex::<_>::new(42);
 
         // First lock succeeds
         let a = mutex.try_lock();
@@ -420,7 +420,7 @@ mod tests {
 
     #[test]
     fn test_into_inner() {
-        let m = TicketMutex::new(NonCopy(10));
+        let m = TicketMutex::<_>::new(NonCopy(10));
         assert_eq!(m.into_inner(), NonCopy(10));
     }
 
@@ -433,7 +433,7 @@ mod tests {
             }
         }
         let num_drops = Arc::new(AtomicUsize::new(0));
-        let m = TicketMutex::new(Foo(num_drops.clone()));
+        let m = TicketMutex::<_>::new(Foo(num_drops.clone()));
         assert_eq!(num_drops.load(Ordering::SeqCst), 0);
         {
             let _inner = m.into_inner();
@@ -446,8 +446,8 @@ mod tests {
     fn test_mutex_arc_nested() {
         // Tests nested mutexes and access
         // to underlying data.
-        let arc = Arc::new(TicketMutex::new(1));
-        let arc2 = Arc::new(TicketMutex::new(arc));
+        let arc = Arc::new(TicketMutex::<_>::new(1));
+        let arc2 = Arc::new(TicketMutex::<_>::new(arc));
         let (tx, rx) = channel();
         let _t = thread::spawn(move || {
             let lock = arc2.lock();
@@ -460,7 +460,7 @@ mod tests {
 
     #[test]
     fn test_mutex_arc_access_in_unwind() {
-        let arc = Arc::new(TicketMutex::new(1));
+        let arc = Arc::new(TicketMutex::<_>::new(1));
         let arc2 = arc.clone();
         let _ = thread::spawn(move || -> () {
             struct Unwinder {
@@ -481,7 +481,7 @@ mod tests {
 
     #[test]
     fn test_mutex_unsized() {
-        let mutex: &TicketMutex<[i32]> = &TicketMutex::new([1, 2, 3]);
+        let mutex: &TicketMutex<[i32]> = &TicketMutex::<_>::new([1, 2, 3]);
         {
             let b = &mut *mutex.lock();
             b[0] = 4;
@@ -493,7 +493,7 @@ mod tests {
 
     #[test]
     fn is_locked() {
-        let mutex = TicketMutex::new(());
+        let mutex = TicketMutex::<_>::new(());
         assert!(!mutex.is_locked());
         let lock = mutex.lock();
         assert!(mutex.is_locked());
