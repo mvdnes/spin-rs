@@ -9,11 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `Once::get_unchecked`
-
 ### Changed
 
 ### Fixed
+
+# [0.8.0] - 2021-03-15
+
+### Added
+
+- `Once::get_unchecked`
+- `RelaxStrategy` trait with type parameter on all locks to support switching between relax strategies.
+
+### Changed
+
+- `lock_api1` feature is now named `lock_api`
 
 # [0.7.1] - 2021-01-12
 

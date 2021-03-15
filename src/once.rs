@@ -4,8 +4,10 @@ use core::{
     cell::UnsafeCell,
     mem::MaybeUninit,
     sync::atomic::{AtomicUsize, Ordering},
+    marker::PhantomData,
     fmt,
 };
+use crate::{RelaxStrategy, Spin};
 
 /// A primitive that provides lazy one-time initialization.
 ///
@@ -26,12 +28,13 @@ use core::{
 ///     // run initialization here
 /// });
 /// ```
-pub struct Once<T> {
+pub struct Once<T, R = Spin> {
+    phantom: PhantomData<R>,
     state: AtomicUsize,
     data: UnsafeCell<MaybeUninit<T>>,
 }
 
-impl<T: fmt::Debug> fmt::Debug for Once<T> {
+impl<T: fmt::Debug, R> fmt::Debug for Once<T, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.get() {
             Some(s) => write!(f, "Once {{ data: ")
@@ -44,8 +47,8 @@ impl<T: fmt::Debug> fmt::Debug for Once<T> {
 
 // Same unsafe impls as `std::sync::RwLock`, because this also allows for
 // concurrent reads.
-unsafe impl<T: Send + Sync> Sync for Once<T> {}
-unsafe impl<T: Send> Send for Once<T> {}
+unsafe impl<T: Send + Sync, R> Sync for Once<T, R> {}
+unsafe impl<T: Send, R> Send for Once<T, R> {}
 
 // Four states that a Once can be in, encoded into the lower bits of `state` in
 // the Once structure.
@@ -56,51 +59,7 @@ const PANICKED: usize = 0x3;
 
 use core::hint::unreachable_unchecked as unreachable;
 
-impl<T> Once<T> {
-    /// Initialization constant of [`Once`].
-    #[allow(clippy::declare_interior_mutable_const)]
-    pub const INIT: Self = Self {
-        state: AtomicUsize::new(INCOMPLETE),
-        data: UnsafeCell::new(MaybeUninit::uninit()),
-    };
-
-    /// Creates a new [`Once`].
-    pub const fn new() -> Once<T> {
-        Self::INIT
-    }
-
-    /// Creates a new initialized [`Once`].
-    pub const fn initialized(data: T) -> Once<T> {
-        Self {
-            state: AtomicUsize::new(COMPLETE),
-            data: UnsafeCell::new(MaybeUninit::new(data)),
-        }
-    }
-
-    /// Get a reference to the initialized instance. Must only be called once COMPLETE.
-    unsafe fn force_get(&self) -> &T {
-        // SAFETY:
-        // * `UnsafeCell`/inner deref: data never changes again
-        // * `MaybeUninit`/outer deref: data was initialized
-        &*(*self.data.get()).as_ptr()
-    }
-
-    /// Get a reference to the initialized instance. Must only be called once COMPLETE.
-    unsafe fn force_get_mut(&mut self) -> &mut T {
-        // SAFETY:
-        // * `UnsafeCell`/inner deref: data never changes again
-        // * `MaybeUninit`/outer deref: data was initialized
-        &mut *(*self.data.get()).as_mut_ptr()
-    }
-
-    /// Get a reference to the initialized instance. Must only be called once COMPLETE.
-    unsafe fn force_into_inner(self) -> T {
-        // SAFETY:
-        // * `UnsafeCell`/inner deref: data never changes again
-        // * `MaybeUninit`/outer deref: data was initialized
-        (*self.data.get()).as_ptr().read()
-    }
-
+impl<T, R: RelaxStrategy> Once<T, R> {
     /// Performs an initialization routine once and only once. The given closure
     /// will be executed if this is the first time `call_once` has been called,
     /// and otherwise the routine will *not* be invoked.
@@ -171,6 +130,94 @@ impl<T> Once<T> {
             .unwrap_or_else(|| unreachable!("Encountered INCOMPLETE when polling Once"))
     }
 
+    /// Spins until the [`Once`] contains a value.
+    ///
+    /// Note that in releases prior to `0.7`, this function had the behaviour of [`Once::poll`].
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the [`Once`] previously panicked while attempting
+    /// to initialize. This is similar to the poisoning behaviour of `std::sync`'s
+    /// primitives.
+    pub fn wait(&self) -> &T {
+        loop {
+            match self.poll() {
+                Some(x) => break x,
+                None => R::relax(),
+            }
+        }
+    }
+
+    /// Like [`Once::get`], but will spin if the [`Once`] is in the process of being
+    /// initialized. If initialization has not even begun, `None` will be returned.
+    ///
+    /// Note that in releases prior to `0.7`, this function was named `wait`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the [`Once`] previously panicked while attempting
+    /// to initialize. This is similar to the poisoning behaviour of `std::sync`'s
+    /// primitives.
+    pub fn poll(&self) -> Option<&T> {
+        loop {
+            match self.state.load(Ordering::SeqCst) {
+                INCOMPLETE => return None,
+                RUNNING => R::relax(), // We spin
+                COMPLETE => return Some(unsafe { self.force_get() }),
+                PANICKED => panic!("Once previously poisoned by a panicked"),
+                _ => unsafe { unreachable() },
+            }
+        }
+    }
+}
+
+impl<T, R> Once<T, R> {
+    /// Initialization constant of [`Once`].
+    #[allow(clippy::declare_interior_mutable_const)]
+    pub const INIT: Self = Self {
+        phantom: PhantomData,
+        state: AtomicUsize::new(INCOMPLETE),
+        data: UnsafeCell::new(MaybeUninit::uninit()),
+    };
+
+    /// Creates a new [`Once`].
+    pub const fn new() -> Self{
+        Self::INIT
+    }
+
+    /// Creates a new initialized [`Once`].
+    pub const fn initialized(data: T) -> Self {
+        Self {
+            phantom: PhantomData,
+            state: AtomicUsize::new(COMPLETE),
+            data: UnsafeCell::new(MaybeUninit::new(data)),
+        }
+    }
+
+    /// Get a reference to the initialized instance. Must only be called once COMPLETE.
+    unsafe fn force_get(&self) -> &T {
+        // SAFETY:
+        // * `UnsafeCell`/inner deref: data never changes again
+        // * `MaybeUninit`/outer deref: data was initialized
+        &*(*self.data.get()).as_ptr()
+    }
+
+    /// Get a reference to the initialized instance. Must only be called once COMPLETE.
+    unsafe fn force_get_mut(&mut self) -> &mut T {
+        // SAFETY:
+        // * `UnsafeCell`/inner deref: data never changes again
+        // * `MaybeUninit`/outer deref: data was initialized
+        &mut *(*self.data.get()).as_mut_ptr()
+    }
+
+    /// Get a reference to the initialized instance. Must only be called once COMPLETE.
+    unsafe fn force_into_inner(self) -> T {
+        // SAFETY:
+        // * `UnsafeCell`/inner deref: data never changes again
+        // * `MaybeUninit`/outer deref: data was initialized
+        (*self.data.get()).as_ptr().read()
+    }
+
     /// Returns a reference to the inner value if the [`Once`] has been initialized.
     pub fn get(&self) -> Option<&T> {
         match self.state.load(Ordering::SeqCst) {
@@ -222,55 +269,15 @@ impl<T> Once<T> {
     pub fn is_completed(&self) -> bool {
         self.state.load(Ordering::SeqCst) == COMPLETE
     }
-
-    /// Spins until the [`Once`] contains a value.
-    ///
-    /// Note that in releases prior to `0.7`, this function had the behaviour of [`Once::poll`].
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the [`Once`] previously panicked while attempting
-    /// to initialize. This is similar to the poisoning behaviour of `std::sync`'s
-    /// primitives.
-    pub fn wait(&self) -> &T {
-        loop {
-            match self.poll() {
-                Some(x) => break x,
-                None => crate::relax(),
-            }
-        }
-    }
-
-    /// Like [`Once::get`], but will spin if the [`Once`] is in the process of being
-    /// initialized. If initialization has not even begun, `None` will be returned.
-    ///
-    /// Note that in releases prior to `0.7`, this function was named `wait`.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the [`Once`] previously panicked while attempting
-    /// to initialize. This is similar to the poisoning behaviour of `std::sync`'s
-    /// primitives.
-    pub fn poll(&self) -> Option<&T> {
-        loop {
-            match self.state.load(Ordering::SeqCst) {
-                INCOMPLETE => return None,
-                RUNNING => crate::relax(), // We spin
-                COMPLETE => return Some(unsafe { self.force_get() }),
-                PANICKED => panic!("Once previously poisoned by a panicked"),
-                _ => unsafe { unreachable() },
-            }
-        }
-    }
 }
 
-impl<T> From<T> for Once<T> {
+impl<T, R> From<T> for Once<T, R> {
     fn from(data: T) -> Self {
         Self::initialized(data)
     }
 }
 
-impl<T> Drop for Once<T> {
+impl<T, R> Drop for Once<T, R> {
     fn drop(&mut self) {
         if self.state.load(Ordering::SeqCst) == COMPLETE {
             unsafe {
@@ -300,7 +307,8 @@ mod tests {
 
     use std::sync::mpsc::channel;
     use std::thread;
-    use super::Once;
+
+    type Once<T> = super::Once<T>;
 
     #[test]
     fn smoke_once() {

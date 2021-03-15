@@ -24,8 +24,8 @@ spinlocks. If you have access to `std`, it's likely that the primitives in
 - Upgradeable `RwLock` guards
 - Guards can be sent and shared between threads
 - Guard leaking
-- `std` feature to enable yield to the OS scheduler in busy loops
-- `Mutex` can become a ticket lock
+- Ticket locks
+- Different strategies for dealing with contention
 
 ## Usage
 

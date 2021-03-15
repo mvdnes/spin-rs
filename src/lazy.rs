@@ -1,10 +1,10 @@
 //! Synchronization primitives for lazy evaluation.
 //!
 //! Implementation adapted from the `SyncLazy` type of the standard library. See:
-//! https://github.com/rust-lang/rust/blob/cae8bc1f2324e31c98cb32b8ed37032fc9cef405/library/std/src/lazy.rs
+//! <https://doc.rust-lang.org/std/lazy/struct.SyncLazy.html>
 
 use core::{cell::Cell, fmt, ops::Deref};
-use crate::Once;
+use crate::{once::Once, RelaxStrategy, Spin};
 
 /// A value which is initialized on the first access.
 ///
@@ -38,12 +38,12 @@ use crate::Once;
 ///     //   Some("Hoyten")
 /// }
 /// ```
-pub struct Lazy<T, F = fn() -> T> {
-    cell: Once<T>,
+pub struct Lazy<T, F = fn() -> T, R = Spin> {
+    cell: Once<T, R>,
     init: Cell<Option<F>>,
 }
 
-impl<T: fmt::Debug, F> fmt::Debug for Lazy<T, F> {
+impl<T: fmt::Debug, F, R> fmt::Debug for Lazy<T, F, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Lazy").field("cell", &self.cell).field("init", &"..").finish()
     }
@@ -57,15 +57,15 @@ impl<T: fmt::Debug, F> fmt::Debug for Lazy<T, F> {
 unsafe impl<T, F: Send> Sync for Lazy<T, F> where Once<T>: Sync {}
 // auto-derived `Send` impl is OK.
 
-impl<T, F> Lazy<T, F> {
+impl<T, F, R> Lazy<T, F, R> {
     /// Creates a new lazy value with the given initializing
     /// function.
-    pub const fn new(f: F) -> Lazy<T, F> {
-        Lazy { cell: Once::new(), init: Cell::new(Some(f)) }
+    pub const fn new(f: F) -> Self {
+        Self { cell: Once::new(), init: Cell::new(Some(f)) }
     }
 }
 
-impl<T, F: FnOnce() -> T> Lazy<T, F> {
+impl<T, F: FnOnce() -> T, R: RelaxStrategy> Lazy<T, F, R> {
     /// Forces the evaluation of this lazy value and
     /// returns a reference to result. This is equivalent
     /// to the `Deref` impl, but is explicit.
@@ -80,7 +80,7 @@ impl<T, F: FnOnce() -> T> Lazy<T, F> {
     /// assert_eq!(Lazy::force(&lazy), &92);
     /// assert_eq!(&*lazy, &92);
     /// ```
-    pub fn force(this: &Lazy<T, F>) -> &T {
+    pub fn force(this: &Self) -> &T {
         this.cell.call_once(|| match this.init.take() {
             Some(f) => f(),
             None => panic!("Lazy instance has previously been poisoned"),
@@ -88,16 +88,17 @@ impl<T, F: FnOnce() -> T> Lazy<T, F> {
     }
 }
 
-impl<T, F: FnOnce() -> T> Deref for Lazy<T, F> {
+impl<T, F: FnOnce() -> T, R: RelaxStrategy> Deref for Lazy<T, F, R> {
     type Target = T;
+
     fn deref(&self) -> &T {
-        Lazy::force(self)
+        Self::force(self)
     }
 }
 
-impl<T: Default> Default for Lazy<T> {
+impl<T: Default, R> Default for Lazy<T, fn() -> T, R> {
     /// Creates a new lazy value using `Default` as the initializing function.
-    fn default() -> Lazy<T> {
-        Lazy::new(T::default)
+    fn default() -> Self {
+        Self::new(T::default)
     }
 }

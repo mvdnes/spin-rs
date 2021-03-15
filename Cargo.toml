@@ -1,6 +1,6 @@
 [package]
 name = "spin"
-version = "0.7.1"
+version = "0.8.0"
 authors = [
 	"Mathijs van de Nes <git@mathijs.vd-nes.nl>",
 	"John Ericson <git@JohnEricson.me>",
@@ -15,7 +15,5 @@ description = "Spin-based synchronization primitives"
 lock_api_crate = { package = "lock_api", version = "0.4", optional = true }
 
 [features]
-default = ["ticket_mutex"]
 lock_api = ["lock_api_crate"]
-ticket_mutex = []
 std = []
