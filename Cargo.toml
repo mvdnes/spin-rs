@@ -1,6 +1,6 @@
 [package]
 name = "spin"
-version = "0.8.0"
+version = "0.9.0"
 authors = [
 	"Mathijs van de Nes <git@mathijs.vd-nes.nl>",
 	"John Ericson <git@JohnEricson.me>",
@@ -15,5 +15,38 @@ description = "Spin-based synchronization primitives"
 lock_api_crate = { package = "lock_api", version = "0.4", optional = true }
 
 [features]
+default = ["lock_api", "mutex", "spin_mutex", "rwlock", "once", "lazy", "barrier"]
+
+# Enables `Mutex`. Must be used with either `spin_mutex` or `use_ticket_mutex`.
+mutex = []
+
+# Enables `SpinMutex` and the default spin mutex implementation for `Mutex`.
+spin_mutex = ["mutex"]
+
+# Enables `TicketMutex`.
+ticket_mutex = ["mutex"]
+
+# Enables the non-default ticket mutex implementation for `Mutex`.
+use_ticket_mutex = ["mutex", "ticket_mutex"]
+
+# Enables `RwLock`.
+rwlock = []
+
+# Enables `Once`.
+once = []
+
+# Enables `Lazy`.
+lazy = ["once"]
+
+# Enables `Barrier`. Because this feature uses `mutex`, either `spin_mutex` or `use_ticket_mutex` must be enabled.
+barrier = ["mutex"]
+
+# Enables `lock_api`-compatible types that use the primitives in this crate internally.
 lock_api = ["lock_api_crate"]
+
+# Enables std-only features such as yield-relaxing.
 std = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

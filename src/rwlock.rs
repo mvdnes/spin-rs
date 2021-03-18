@@ -756,6 +756,7 @@ unsafe impl<R: RelaxStrategy> lock_api_crate::RawRwLock for RwLock<(), R> {
         drop(RwLockWriteGuard {
             inner: self,
             data: &mut (),
+            phantom: PhantomData,
         });
     }
 
@@ -804,6 +805,7 @@ unsafe impl<R: RelaxStrategy> lock_api_crate::RawRwLockUpgrade for RwLock<(), R>
         drop(RwLockUpgradableGuard {
             inner: self,
             data: &(),
+            phantom: PhantomData,
         });
     }
 
@@ -812,6 +814,7 @@ unsafe impl<R: RelaxStrategy> lock_api_crate::RawRwLockUpgrade for RwLock<(), R>
         let tmp_guard = RwLockUpgradableGuard {
             inner: self,
             data: &(),
+            phantom: PhantomData,
         };
         core::mem::forget(tmp_guard.upgrade());
     }
@@ -821,6 +824,7 @@ unsafe impl<R: RelaxStrategy> lock_api_crate::RawRwLockUpgrade for RwLock<(), R>
         let tmp_guard = RwLockUpgradableGuard {
             inner: self,
             data: &(),
+            phantom: PhantomData,
         };
         tmp_guard.try_upgrade().map(|g| core::mem::forget(g)).is_ok()
     }
@@ -832,6 +836,7 @@ unsafe impl<R: RelaxStrategy> lock_api_crate::RawRwLockDowngrade for RwLock<(), 
         let tmp_guard = RwLockWriteGuard {
             inner: self,
             data: &mut (),
+            phantom: PhantomData,
         };
         core::mem::forget(tmp_guard.downgrade());
     }
@@ -843,6 +848,7 @@ unsafe impl lock_api::RawRwLockUpgradeDowngrade for RwLock<()> {
         let tmp_guard = RwLockUpgradableGuard {
             inner: self,
             data: &(),
+            phantom: PhantomData,
         };
         core::mem::forget(tmp_guard.downgrade());
     }
@@ -851,6 +857,7 @@ unsafe impl lock_api::RawRwLockUpgradeDowngrade for RwLock<()> {
         let tmp_guard = RwLockWriteGuard {
             inner: self,
             data: &mut (),
+            phantom: PhantomData,
         };
         core::mem::forget(tmp_guard.downgrade_to_upgradeable());
     }
