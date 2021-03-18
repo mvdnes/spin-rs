@@ -60,17 +60,32 @@
 #[cfg(any(test, feature = "std"))]
 extern crate core;
 
+#[cfg(feature = "barrier")]
+#[cfg_attr(docsrs, doc(cfg(feature = "barrier")))]
 pub mod barrier;
+#[cfg(feature = "lazy")]
+#[cfg_attr(docsrs, doc(cfg(feature = "lazy")))]
 pub mod lazy;
+#[cfg(feature = "mutex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "mutex")))]
 pub mod mutex;
+#[cfg(feature = "once")]
+#[cfg_attr(docsrs, doc(cfg(feature = "once")))]
 pub mod once;
-pub mod rw_lock;
+#[cfg(feature = "rwlock")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
+pub mod rwlock;
 pub mod relax;
 
+#[cfg(feature = "mutex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "mutex")))]
 pub use mutex::MutexGuard;
-pub use rw_lock::RwLockReadGuard;
+#[cfg(feature = "rwlock")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
+pub use rwlock::RwLockReadGuard;
 pub use relax::{Spin, RelaxStrategy};
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub use relax::Yield;
 
 // Avoid confusing inference errors by aliasing away the relax strategy parameter. Users that need to use a different
@@ -81,64 +96,91 @@ pub use relax::Yield;
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
+#[cfg(feature = "barrier")]
+#[cfg_attr(docsrs, doc(cfg(feature = "barrier")))]
 pub type Barrier = crate::barrier::Barrier;
 
 /// A value which is initialized on the first access. See [`lazy::Lazy`] for documentation.
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
+#[cfg(feature = "lazy")]
+#[cfg_attr(docsrs, doc(cfg(feature = "lazy")))]
 pub type Lazy<T, F = fn() -> T> = crate::lazy::Lazy<T, F>;
 
 /// A primitive that synchronizes the execution of multiple threads. See [`mutex::Mutex`] for documentation.
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
+#[cfg(feature = "mutex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "mutex")))]
 pub type Mutex<T> = crate::mutex::Mutex<T>;
 
 /// A primitive that provides lazy one-time initialization. See [`once::Once`] for documentation.
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
+#[cfg(feature = "once")]
+#[cfg_attr(docsrs, doc(cfg(feature = "once")))]
 pub type Once<T> = crate::once::Once<T>;
 
-/// A lock that provides data access to either one writer or many readers. See [`rw_lock::RwLock`] for documentation.
+/// A lock that provides data access to either one writer or many readers. See [`rwlock::RwLock`] for documentation.
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
-pub type RwLock<T> = crate::rw_lock::RwLock<T>;
+#[cfg(feature = "rwlock")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
+pub type RwLock<T> = crate::rwlock::RwLock<T>;
 
 /// A guard that provides immutable data access but can be upgraded to [`RwLockWriteGuard`]. See
-/// [`rw_lock::RwLockUpgradableGuard`] for documentation.
+/// [`rwlock::RwLockUpgradableGuard`] for documentation.
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
-pub type RwLockUpgradableGuard<'a, T> = crate::rw_lock::RwLockUpgradableGuard<'a, T>;
+#[cfg(feature = "rwlock")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
+pub type RwLockUpgradableGuard<'a, T> = crate::rwlock::RwLockUpgradableGuard<'a, T>;
 
-/// A guard that provides mutable data access. See [`rw_lock::RwLockWriteGuard`] for documentation.
+/// A guard that provides mutable data access. See [`rwlock::RwLockWriteGuard`] for documentation.
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
-pub type RwLockWriteGuard<'a, T> = crate::rw_lock::RwLockWriteGuard<'a, T>;
+#[cfg(feature = "rwlock")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
+pub type RwLockWriteGuard<'a, T> = crate::rwlock::RwLockWriteGuard<'a, T>;
 
 /// Spin synchronisation primitives, but compatible with [`lock_api`](https://crates.io/crates/lock_api).
 #[cfg(feature = "lock_api")]
+#[cfg_attr(docsrs, doc(cfg(feature = "lock_api")))]
 pub mod lock_api {
     /// A lock that provides mutually exclusive data access (compatible with [`lock_api`](https://crates.io/crates/lock_api)).
+    #[cfg(feature = "mutex")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "mutex")))]
     pub type Mutex<T> = lock_api_crate::Mutex<crate::Mutex<()>, T>;
 
     /// A guard that provides mutable data access (compatible with [`lock_api`](https://crates.io/crates/lock_api)).
+    #[cfg(feature = "mutex")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "mutex")))]
     pub type MutexGuard<'a, T> = lock_api_crate::MutexGuard<'a, crate::Mutex<()>, T>;
 
     /// A lock that provides data access to either one writer or many readers (compatible with [`lock_api`](https://crates.io/crates/lock_api)).
+    #[cfg(feature = "rwlock")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
     pub type RwLock<T> = lock_api_crate::RwLock<crate::RwLock<()>, T>;
 
     /// A guard that provides immutable data access (compatible with [`lock_api`](https://crates.io/crates/lock_api)).
+    #[cfg(feature = "rwlock")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
     pub type RwLockReadGuard<'a, T> = lock_api_crate::RwLockReadGuard<'a, crate::RwLock<()>, T>;
 
     /// A guard that provides mutable data access (compatible with [`lock_api`](https://crates.io/crates/lock_api)).
+    #[cfg(feature = "rwlock")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
     pub type RwLockWriteGuard<'a, T> = lock_api_crate::RwLockWriteGuard<'a, crate::RwLock<()>, T>;
 
     /// A guard that provides immutable data access but can be upgraded to [`RwLockWriteGuard`] (compatible with [`lock_api`](https://crates.io/crates/lock_api)).
+    #[cfg(feature = "rwlock")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
     pub type RwLockUpgradableReadGuard<'a, T> =
         lock_api_crate::RwLockUpgradableReadGuard<'a, crate::RwLock<()>, T>;
 }

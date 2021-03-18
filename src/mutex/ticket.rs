@@ -1,3 +1,10 @@
+//! A ticket-based mutex.
+//!
+//! Waiting threads take a 'ticket' from the lock in the order they arrive and gain access to the lock when their
+//! ticket is next in the queue. Best-case latency is slightly worse than a regular spinning mutex, but worse-case
+//! latency is infinitely better. Waiting threads simply need to wait for all threads that come before them in the
+//! queue to finish.
+
 use core::{
     cell::UnsafeCell,
     fmt,

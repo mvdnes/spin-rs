@@ -13,11 +13,13 @@
 //! [`SpinMutex`]: ./struct.SpinMutex.html
 //! [`SpinMutexGuard`]: ./struct.SpinMutexGuard.html
 
-mod spin;
-pub use self::spin::*;
+#[cfg(feature = "spin_mutex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "spin_mutex")))]
+pub mod spin;
 
-mod ticket;
-pub use self::ticket::*;
+#[cfg(feature = "ticket_mutex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ticket_mutex")))]
+pub mod ticket;
 
 use core::{
     fmt,
@@ -25,20 +27,23 @@ use core::{
 };
 use crate::{RelaxStrategy, Spin};
 
-#[cfg(feature = "ticket_mutex")]
-type InnerMutex<T, R> = TicketMutex<T, R>;
-#[cfg(feature = "ticket_mutex")]
-type InnerMutexGuard<'a, T> = TicketMutexGuard<'a, T>;
+#[cfg(all(not(feature = "spin_mutex"), not(feature = "use_ticket_mutex")))]
+compile_error!("The `mutex` feature flag was used (perhaps through another feature?) without either `spin_mutex` or `use_ticket_mutex`. One of these is required.");
 
-#[cfg(not(feature = "ticket_mutex"))]
-type InnerMutex<T, R> = SpinMutex<T, R>;
-#[cfg(not(feature = "ticket_mutex"))]
-type InnerMutexGuard<'a, T> = SpinMutexGuard<'a, T>;
+#[cfg(all(not(feature = "use_ticket_mutex"), feature = "spin_mutex"))]
+type InnerMutex<T, R> = self::spin::SpinMutex<T, R>;
+#[cfg(all(not(feature = "use_ticket_mutex"), feature = "spin_mutex"))]
+type InnerMutexGuard<'a, T> = self::spin::SpinMutexGuard<'a, T>;
+
+#[cfg(feature = "use_ticket_mutex")]
+type InnerMutex<T, R> = self::ticket::TicketMutex<T, R>;
+#[cfg(feature = "use_ticket_mutex")]
+type InnerMutexGuard<'a, T> = self::ticket::TicketMutexGuard<'a, T>;
 
 /// A spin-based lock providing mutually exclusive access to data.
 ///
-/// The implementation uses either a [`TicketMutex`] or a regular [`SpinMutex`] depending on whether the `ticket_mutex`
-/// feature flag is enabled.
+/// The implementation uses either a ticket mutex or a regular spin mutex depending on whether the `spin_mutex` or
+/// `ticket_mutex` feature flag is enabled.
 ///
 /// # Example
 ///

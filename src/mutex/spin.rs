@@ -1,3 +1,8 @@
+//! A naïve spinning mutex.
+//!
+//! Waiting threads hammer an atomic variable until it becomes available. Best-case latency is low, but worst-case
+//! latency is theoretically infinite.
+
 use core::{
     cell::UnsafeCell,
     fmt,
