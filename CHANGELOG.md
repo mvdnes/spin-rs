@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Default type parameter on `Once` for better ergonomics
+
 ### Changed
 
 ### Fixed
@@ -28,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `Once::get_unchecked`
-- `RelaxStrategy` trait with type parameter on all locks to support switching between relax strategies.
+- `RelaxStrategy` trait with type parameter on all locks to support switching between relax strategies
 
 ### Changed
 
