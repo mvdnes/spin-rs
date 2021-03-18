@@ -13,7 +13,7 @@ use crate::{RelaxStrategy, Spin};
 ///
 /// Unlike its `std::sync` equivalent, this is generalized such that the closure returns a
 /// value to be stored by the [`Once`] (`std::sync::Once` can be trivially emulated with
-/// `Once<()>`).
+/// `Once`).
 ///
 /// Because [`Once::new`] is `const`, this primitive may be used to safely initialize statics.
 ///
@@ -22,13 +22,13 @@ use crate::{RelaxStrategy, Spin};
 /// ```
 /// use spin;
 ///
-/// static START: spin::Once<()> = spin::Once::new();
+/// static START: spin::Once = spin::Once::new();
 ///
 /// START.call_once(|| {
 ///     // run initialization here
 /// });
 /// ```
-pub struct Once<T, R = Spin> {
+pub struct Once<T = (), R = Spin> {
     phantom: PhantomData<R>,
     state: AtomicUsize,
     data: UnsafeCell<MaybeUninit<T>>,
@@ -308,11 +308,11 @@ mod tests {
     use std::sync::mpsc::channel;
     use std::thread;
 
-    type Once<T> = super::Once<T>;
+    use super::*;
 
     #[test]
     fn smoke_once() {
-        static O: Once<()> = Once::new();
+        static O: Once = Once::new();
         let mut a = 0;
         O.call_once(|| a += 1);
         assert_eq!(a, 1);
@@ -331,7 +331,7 @@ mod tests {
 
     #[test]
     fn stampede_once() {
-        static O: Once<()> = Once::new();
+        static O: Once = Once::new();
         static mut RUN: bool = false;
 
         let (tx, rx) = channel();
@@ -413,7 +413,7 @@ mod tests {
     fn panic() {
         use ::std::panic;
 
-        static INIT: Once<()> = Once::new();
+        static INIT: Once = Once::new();
 
         // poison the once
         let t = panic::catch_unwind(|| {
@@ -430,7 +430,7 @@ mod tests {
 
     #[test]
     fn init_constant() {
-        static O: Once<()> = Once::INIT;
+        static O: Once = Once::INIT;
         let mut a = 0;
         O.call_once(|| a += 1);
         assert_eq!(a, 1);
@@ -457,7 +457,7 @@ mod tests {
         }
 
         {
-            let once = Once::new();
+            let once = Once::<_>::new();
             once.call_once(|| DropTest {});
         }
 

@@ -122,7 +122,7 @@ pub type Mutex<T> = crate::mutex::Mutex<T>;
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
 #[cfg(feature = "once")]
 #[cfg_attr(docsrs, doc(cfg(feature = "once")))]
-pub type Once<T> = crate::once::Once<T>;
+pub type Once<T = ()> = crate::once::Once<T>;
 
 /// A lock that provides data access to either one writer or many readers. See [`rwlock::RwLock`] for documentation.
 ///
