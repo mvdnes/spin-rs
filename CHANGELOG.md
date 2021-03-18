@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+# [0.9.0] - 2021-03-18
+
+### Changed
+
+- Placed all major API features behind feature flags
+
+### Fixed
+
+- A compilation bug with the `lock_api` feature
+
 # [0.8.0] - 2021-03-15
 
 ### Added
