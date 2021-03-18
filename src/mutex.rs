@@ -16,10 +16,16 @@
 #[cfg(feature = "spin_mutex")]
 #[cfg_attr(docsrs, doc(cfg(feature = "spin_mutex")))]
 pub mod spin;
+#[cfg(feature = "spin_mutex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "spin_mutex")))]
+pub use self::spin::{SpinMutex, SpinMutexGuard};
 
 #[cfg(feature = "ticket_mutex")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ticket_mutex")))]
 pub mod ticket;
+#[cfg(feature = "ticket_mutex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ticket_mutex")))]
+pub use self::ticket::{TicketMutex, TicketMutexGuard};
 
 use core::{
     fmt,
