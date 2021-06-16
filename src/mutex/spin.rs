@@ -117,6 +117,32 @@ impl<T, R> SpinMutex<T, R> {
         let SpinMutex { data, .. } = self;
         data.into_inner()
     }
+
+    /// Returns a mutable pointer to the underying data.
+    ///
+    /// This is mostly meant to be used for applications which require manual unlocking, but where
+    /// storing both the lock and the pointer to the inner data gets inefficient.
+    ///
+    /// # Example
+    /// ```
+    /// let lock = spin::mutex::SpinMutex::<_>::new(42);
+    ///
+    /// unsafe {
+    ///     core::mem::forget(lock.lock());
+    ///     
+    ///     assert_eq!(lock.as_mut_ptr().read(), 42);
+    ///     lock.as_mut_ptr().write(58);
+    ///
+    ///     lock.force_unlock();
+    /// }
+    ///
+    /// assert_eq!(*lock.lock(), 58);
+    ///
+    /// ```
+    #[inline(always)]
+    pub fn as_mut_ptr(&self) -> *mut T {
+        self.data.get()
+    }
 }
 
 impl<T: ?Sized, R: RelaxStrategy> SpinMutex<T, R> {

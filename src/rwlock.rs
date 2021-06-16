@@ -141,6 +141,34 @@ impl<T, R> RwLock<T, R> {
         let RwLock { data, .. } = self;
         data.into_inner()
     }
+    /// Returns a mutable pointer to the underying data.
+    ///
+    /// This is mostly meant to be used for applications which require manual unlocking, but where
+    /// storing both the lock and the pointer to the inner data gets inefficient.
+    ///
+    /// While this is safe, accessing the data is undefined behavior unless the current thread has
+    /// acquired a write lock.
+    ///
+    /// # Example
+    /// ```
+    /// let lock = spin::RwLock::new(42);
+    ///
+    /// unsafe {
+    ///     core::mem::forget(lock.write());
+    ///     
+    ///     assert_eq!(lock.as_mut_ptr().read(), 42);
+    ///     lock.as_mut_ptr().write(58);
+    ///
+    ///     lock.force_write_unlock();
+    /// }
+    ///
+    /// assert_eq!(*lock.read(), 58);
+    ///
+    /// ```
+    #[inline(always)]
+    pub fn as_mut_ptr(&self) -> *mut T {
+        self.data.get()
+    }
 }
 
 impl<T: ?Sized, R: RelaxStrategy> RwLock<T, R> {
