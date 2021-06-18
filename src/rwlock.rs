@@ -146,8 +146,8 @@ impl<T, R> RwLock<T, R> {
     /// This is mostly meant to be used for applications which require manual unlocking, but where
     /// storing both the lock and the pointer to the inner data gets inefficient.
     ///
-    /// While this is safe, accessing the data is undefined behavior unless the current thread has
-    /// acquired a write lock.
+    /// While this is safe, writing to the data is undefined behavior unless the current thread has
+    /// acquired a write lock, and reading requires either a read or write lock.
     ///
     /// # Example
     /// ```
