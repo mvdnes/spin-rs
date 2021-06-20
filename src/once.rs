@@ -194,6 +194,17 @@ impl<T, R> Once<T, R> {
         }
     }
 
+    /// Retrieve a pointer to the inner data.
+    ///
+    /// While this method itself is safe, accessing the pointer before the [`Once`] has been
+    /// initialized is UB, unless this method has already been written to from a pointer coming
+    /// from this method.
+    pub fn as_mut_ptr(&self) -> *mut T {
+        // SAFETY:
+        // * MaybeUninit<T> always has exactly the same layout as T
+        self.data.get().cast::<T>()
+    }
+
     /// Get a reference to the initialized instance. Must only be called once COMPLETE.
     unsafe fn force_get(&self) -> &T {
         // SAFETY:
