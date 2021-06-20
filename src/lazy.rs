@@ -63,6 +63,14 @@ impl<T, F, R> Lazy<T, F, R> {
     pub const fn new(f: F) -> Self {
         Self { cell: Once::new(), init: Cell::new(Some(f)) }
     }
+    /// Retrieves a mutable pointer to the inner data.
+    ///
+    /// This is especially useful when interfacing with low level code or FFI where the caller
+    /// explicitly knows that it has exclusive access to the inner data. Note that reading from
+    /// this pointer is UB until initialized or directly written to.
+    pub fn as_mut_ptr(&self) -> *mut T {
+        self.cell.as_mut_ptr()
+    }
 }
 
 impl<T, F: FnOnce() -> T, R: RelaxStrategy> Lazy<T, F, R> {
