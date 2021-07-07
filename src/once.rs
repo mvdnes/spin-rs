@@ -152,8 +152,22 @@ impl<T, R: RelaxStrategy> Once<T, R> {
             PANICKED => panic!("Once panicked"),
             RUNNING => self
                 .poll()
-                // TODO: unreachable_unchecked in release builds?
-                .unwrap_or_else(|| unreachable!("Encountered INCOMPLETE when polling Once")),
+                .unwrap_or_else(|| {
+                    if cfg!(debug_assertions) {
+                        unreachable!("Encountered INCOMPLETE when polling Once")
+                    } else {
+                        // SAFETY: This poll is guaranteed never to fail because the API of poll
+                        // promises spinning if initialization is in progress. We've already
+                        // checked that initialisation is in progress, and initialisation is
+                        // monotonic: once done, it cannot be undone. We also fetched the status
+                        // with Acquire semantics, thereby guaranteeing that the later-executed
+                        // poll will also agree with us that initialization is in progress. Ergo,
+                        // this poll cannot fail.
+                        unsafe {
+                            unreachable();
+                        }
+                    }
+                }),
 
             _ => unsafe { unreachable() },
         }
