@@ -333,7 +333,8 @@ impl<T, R> Once<T, R> {
     /// Checks whether the value has been initialized.
     ///
     /// This is done using [`Acquire`](core::sync::atomic::Ordering::Acquire) ordering, and
-    /// therefore it is safe to access the value directly via [`as_mut_ptr`] if this returns true.
+    /// therefore it is safe to access the value directly via
+    /// [`get_unchecked`](Self::get_unchecked) if this returns true.
     pub fn is_completed(&self) -> bool {
         // TODO: Add a similar variant for Relaxed?
         self.status.load(Ordering::Acquire) == COMPLETE
