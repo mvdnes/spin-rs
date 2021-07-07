@@ -109,9 +109,13 @@ impl<T, R: RelaxStrategy> Once<T, R> {
                 // must always be at least as strong as the failure ordering, so we choose Acquire
                 // here anyway.
                 Ordering::Acquire,
-                // SAFETY: Failure ordering: While we have already loaded the status, we know
-                // that if some other thread would have initialized this in between, then we
-                // also want those changes as well, to become visible for us.
+                // SAFETY: Failure ordering: While we have already loaded the status initially, we
+                // know that if some other thread would have fully initialized this in between,
+                // then there will be new not-yet-synchronized accesses done during that
+                // initialization that would not have been synchronized by the earlier load. Thus
+                // we use Acquire to ensure when we later call force_get() in the last match
+                // statement, if the status was changed to COMPLETE, that those accesses will become
+                // visible to us.
                 Ordering::Acquire,
             ) {
                 Ok(_must_be_state_incomplete) => {
