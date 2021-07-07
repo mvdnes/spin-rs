@@ -169,6 +169,11 @@ impl<T, R: RelaxStrategy> Once<T, R> {
                     }
                 }),
 
+            // SAFETY: The only invariant possible in addition to the aforementioned ones at the
+            // moment, is INCOMPLETE. However, the only way for this match statement to be
+            // reached, is if we lost the CAS (otherwise we would have returned early), in
+            // which case we know for a fact that the state cannot be changed back to INCOMPLETE as
+            // `Once`s are monotonic.
             _ => unsafe { unreachable() },
         }
 
