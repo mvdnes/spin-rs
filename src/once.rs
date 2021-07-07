@@ -347,11 +347,13 @@ struct Finish<'a> {
 impl<'a> Drop for Finish<'a> {
     fn drop(&mut self) {
         if self.panicked {
-            // TODO: Is Relaxed ok here? Because, if we panic then no data will ever be accessed at
-            // all, and even Relaxed provides synchronization between the same atomic variable. All
-            // that I am afraid of is that this store itself may get reordered within the current
-            // thread, with things it should not.
-            self.state.store(PANICKED, Ordering::Release);
+            // While using Relaxed here would most likely not be an issue, we use SeqCst anyway.
+            // This is mainly because panics are not meant to be fast at all, but also because if
+            // there were to be a compiler bug which reorders accesses within the same thread,
+            // where it should not, we want to be sure that the panic really is handled, and does
+            // not cause additional problems. SeqCst will therefore help guarding against such
+            // bugs.
+            self.state.store(PANICKED, Ordering::SeqCst);
         }
     }
 }
