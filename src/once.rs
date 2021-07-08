@@ -191,6 +191,17 @@ impl<T, R: RelaxStrategy> Once<T, R> {
                         // `write`: pointer comes from `MaybeUninit`.
                         (*self.data.get()).as_mut_ptr().write(f())
                     };
+                    // If there were to be a panic with unwind enabled, the code would
+                    // short-circuit and never reach the point where it writes the inner data.
+                    // The destructor for Finish will run, and poison the Once to ensure that other
+                    // threads accessing it do not exhibit unwanted behavior, if there were to be
+                    // any inconsistency in data structures caused by the panicking thread.
+                    //
+                    // However, f() is expected in the general case not to panic. In that case, we
+                    // simply forget the guard, bypassing its destructor. We could theoretically
+                    // clear a flag instead, but this eliminates the call to the destructor at
+                    // compile time, and unconditionally poisons during an eventual panic, if
+                    // unwinding is enabled.
                     core::mem::forget(finish);
 
                     // SAFETY: Release is required here, so that all memory accesses done in the
