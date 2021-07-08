@@ -56,6 +56,7 @@ mod status {
     // SAFETY: This structure has an invariant, namely that the inner atomic u8 must *always* have
     // a value for which there exists a valid Status. This means that users of this API must only
     // be allowed to load and store `Status`es.
+    #[repr(transparent)]
     pub struct AtomicStatus(AtomicU8);
 
     // Four states that a Once can be in, encoded into the lower bits of `status` in
