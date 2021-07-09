@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Default type parameter on `Once` for better ergonomics
+### Changed
+
+### Fixed
+
+# [0.9.2] - 2021-07-09
 
 ### Changed
 
@@ -18,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Improved performance of `Once` by relaxing ordering guarantees and removing redundant checks
+
+# [0.9.1] - 2021-06-21
+
+### Added
+
+- Default type parameter on `Once` for better ergonomics
 
 # [0.9.0] - 2021-03-18
 
