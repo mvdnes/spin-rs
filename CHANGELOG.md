@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Improved `Once` performance by reducing the memory footprint of internal state to one byte
+
 ### Fixed
 
 - Improved performance of `Once` by relaxing ordering guarantees and removing redundant checks
