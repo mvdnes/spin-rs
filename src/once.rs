@@ -34,6 +34,10 @@ pub struct Once<T = (), R = Spin> {
     data: UnsafeCell<MaybeUninit<T>>,
 }
 
+impl<T, R> Default for Once<T, R> {
+    fn default() -> Self { Self::new() }
+}
+
 impl<T: fmt::Debug, R> fmt::Debug for Once<T, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.get() {
