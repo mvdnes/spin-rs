@@ -13,6 +13,7 @@ description = "Spin-based synchronization primitives"
 
 [dependencies]
 lock_api_crate = { package = "lock_api", version = "0.4", optional = true }
+atomic_polyfill_crate = { package = "atomic-polyfill", version = "0.1", optional = true }
 
 [features]
 default = ["lock_api", "mutex", "spin_mutex", "rwlock", "once", "lazy", "barrier"]
@@ -46,6 +47,9 @@ lock_api = ["lock_api_crate"]
 
 # Enables std-only features such as yield-relaxing.
 std = []
+
+# Use atomics-polyfill if the platform does not support CAS operations.
+atomic_polyfill = ["atomic_polyfill_crate"]
 
 [package.metadata.docs.rs]
 all-features = true

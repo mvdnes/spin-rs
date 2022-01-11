@@ -7,10 +7,12 @@ use core::{
     cell::UnsafeCell,
     fmt,
     ops::{Deref, DerefMut},
-    sync::atomic::{AtomicBool, Ordering},
     marker::PhantomData,
 };
-use crate::{RelaxStrategy, Spin};
+use crate::{
+    RelaxStrategy, Spin,
+    atomic::{AtomicBool, Ordering},
+};
 
 /// A [spin lock](https://en.m.wikipedia.org/wiki/Spinlock) providing mutually exclusive access to data.
 ///

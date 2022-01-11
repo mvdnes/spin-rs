@@ -9,10 +9,12 @@ use core::{
     cell::UnsafeCell,
     fmt,
     ops::{Deref, DerefMut},
-    sync::atomic::{AtomicUsize, Ordering},
     marker::PhantomData,
 };
-use crate::{RelaxStrategy, Spin};
+use crate::{
+    RelaxStrategy, Spin,
+    atomic::{AtomicUsize, Ordering},
+};
 
 /// A spin-based [ticket lock](https://en.wikipedia.org/wiki/Ticket_lock) providing mutually exclusive access to data.
 ///

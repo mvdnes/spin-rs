@@ -92,6 +92,8 @@ The crate comes with a few feature flags that you may wish to use.
 
 - `std` enables support for thread yielding instead of spinning.
 
+- `atomic_polyfill` enables support for single core platforms that do not or partially support CAS operations.
+
 ## Remarks
 
 It is often desirable to have a lock shared between threads. Wrapping the lock in an

@@ -3,12 +3,14 @@
 use core::{
     cell::UnsafeCell,
     ops::{Deref, DerefMut},
-    sync::atomic::{AtomicUsize, Ordering},
     marker::PhantomData,
     fmt,
     mem,
 };
-use crate::{RelaxStrategy, Spin};
+use crate::{
+    RelaxStrategy, Spin,
+    atomic::{AtomicUsize, Ordering},
+};
 
 /// A lock that provides data access to either one writer or many readers.
 ///
