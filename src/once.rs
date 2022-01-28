@@ -161,6 +161,46 @@ impl<T, R: RelaxStrategy> Once<T, R> {
     /// }
     /// ```
     pub fn call_once<F: FnOnce() -> T>(&self, f: F) -> &T {
+        match self.try_call_once(|| Ok::<T, core::convert::Infallible>(f())) {
+            Ok(x) => x,
+            Err(void) => match void {},
+        }
+    }
+
+    /// This method is similar to `call_once`, but allows the given closure to
+    /// fail, and lets the `Once` in a uninitialized state if it does.
+    ///
+    /// This method will block the calling thread if another initialization
+    /// routine is currently running.
+    ///
+    /// When this function returns without error, it is guaranteed that some
+    /// initialization has run and completed (it may not be the closure
+    /// specified). The returned reference will point to the result from the
+    /// closure that was run.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the [`Once`] previously panicked while attempting
+    /// to initialize. This is similar to the poisoning behaviour of `std::sync`'s
+    /// primitives.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use spin;
+    ///
+    /// static INIT: spin::Once<usize> = spin::Once::new();
+    ///
+    /// fn get_cached_val() -> Result<usize, String> {
+    ///     INIT.try_call_once(expensive_fallible_computation).map(|x| *x)
+    /// }
+    ///
+    /// fn expensive_fallible_computation() -> Result<usize, String> {
+    ///     // ...
+    /// # Ok(2)
+    /// }
+    /// ```
+    pub fn try_call_once<F: FnOnce() -> Result<T, E>, E>(&self, f: F) -> Result<&T, E> {
         // SAFETY: We perform an Acquire load because if this were to return COMPLETE, then we need
         // the preceding stores done while initializing, to become visible after this load.
         let mut status = self.status.load(Ordering::Acquire);
@@ -189,12 +229,21 @@ impl<T, R: RelaxStrategy> Once<T, R> {
 
                     // We use a guard (Finish) to catch panics caused by builder
                     let finish = Finish { status: &self.status };
+                    let val = match f() {
+                        Ok(val) => val,
+                        Err(err) => {
+                            // If an error occurs, clean up everything and leave.
+                            core::mem::forget(finish);
+                            self.status.store(Status::Incomplete, Ordering::Release);
+                            return Err(err);
+                        }
+                    };
                     unsafe {
                         // SAFETY:
                         // `UnsafeCell`/deref: currently the only accessor, mutably
                         // and immutably by cas exclusion.
                         // `write`: pointer comes from `MaybeUninit`.
-                        (*self.data.get()).as_mut_ptr().write(f())
+                        (*self.data.get()).as_mut_ptr().write(val);
                     };
                     // If there were to be a panic with unwind enabled, the code would
                     // short-circuit and never reach the point where it writes the inner data.
@@ -218,7 +267,7 @@ impl<T, R: RelaxStrategy> Once<T, R> {
                     self.status.store(Status::Complete, Ordering::Release);
 
                     // This next line is mainly an optimization.
-                    return unsafe { self.force_get() };
+                    return unsafe { Ok(self.force_get()) };
                 }
                 // The compare-exchange failed, so we know for a fact that the status cannot be
                 // INCOMPLETE, or it would have succeeded.
@@ -226,7 +275,7 @@ impl<T, R: RelaxStrategy> Once<T, R> {
             }
         }
 
-        match status {
+        Ok(match status {
             // SAFETY: We have either checked with an Acquire load, that the status is COMPLETE, or
             // initialized it ourselves, in which case no additional synchronization is needed.
             Status::Complete => unsafe { self.force_get() },
@@ -256,8 +305,7 @@ impl<T, R: RelaxStrategy> Once<T, R> {
             // which case we know for a fact that the state cannot be changed back to INCOMPLETE as
             // `Once`s are monotonic.
             Status::Incomplete => unsafe { unreachable() },
-        }
-
+        })
     }
 
     /// Spins until the [`Once`] contains a value.
