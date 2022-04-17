@@ -110,7 +110,7 @@ mod status {
                 // that both Ok(_) and Err(_) will be safely transmutable.
 
                 Ok(ok) => Ok(unsafe { Status::new_unchecked(ok) }),
-                Err(err) => Ok(unsafe { Status::new_unchecked(err) }),
+                Err(err) => Err(unsafe { Status::new_unchecked(err) }),
             }
         }
         #[inline(always)]
@@ -680,5 +680,34 @@ mod tests {
         assert!(unsafe {
             !CALLED
         });
+    }
+
+    #[test]
+    fn call_once_test() {
+        for _ in 0..20 {
+            use std::sync::Arc;
+            use std::sync::atomic::AtomicUsize;
+            use std::time::Duration;
+            let share = Arc::new(AtomicUsize::new(0));
+            let once = Arc::new(Once::<_, Spin>::new());
+            let mut hs = Vec::new();
+            for _ in 0..8 {
+                let h = thread::spawn({
+                    let share = share.clone();
+                    let once = once.clone();
+                    move || {
+                        thread::sleep(Duration::from_millis(10));
+                        once.call_once(|| {
+                            share.fetch_add(1, Ordering::SeqCst);
+                        });
+                    }
+                });
+                hs.push(h);
+            }
+            for h in hs {
+                let _ = h.join();
+            }
+            assert_eq!(1, share.load(Ordering::SeqCst));
+        }
     }
 }
