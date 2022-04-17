@@ -9,11 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Implemented `Default` for `Once`
-
 ### Changed
 
 ### Fixed
+
+# [0.9.3] - 2022-04-17
+
+### Added
+
+- Implemented `Default` for `Once`
+- `Once::try_call_once`
+
+### Fixed
+
+- Fixed bug that caused `Once::call_once` to incorrectly fail
 
 # [0.9.2] - 2021-07-09
 
