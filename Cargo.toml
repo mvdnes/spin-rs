@@ -2,9 +2,9 @@
 name = "spin"
 version = "0.9.3"
 authors = [
-	"Mathijs van de Nes <git@mathijs.vd-nes.nl>",
-	"John Ericson <git@JohnEricson.me>",
-	"Joshua Barretto <joshua.s.barretto@gmail.com>",
+    "Mathijs van de Nes <git@mathijs.vd-nes.nl>",
+    "John Ericson <git@JohnEricson.me>",
+    "Joshua Barretto <joshua.s.barretto@gmail.com>",
 ]
 license = "MIT"
 repository = "https://github.com/mvdnes/spin-rs.git"
@@ -13,6 +13,7 @@ description = "Spin-based synchronization primitives"
 
 [dependencies]
 lock_api_crate = { package = "lock_api", version = "0.4", optional = true }
+portable-atomic = { version = "0.3", optional = true }
 
 [features]
 default = ["lock_api", "mutex", "spin_mutex", "rwlock", "once", "lazy", "barrier"]
@@ -46,6 +47,10 @@ lock_api = ["lock_api_crate"]
 
 # Enables std-only features such as yield-relaxing.
 std = []
+
+# Use the portable_atomic crate to support platforms without native atomic operations (Cortex-M0, ARMv4, etc.)
+# NOTE by its nature,
+portable_atomic = ["portable-atomic"]
 
 [package.metadata.docs.rs]
 all-features = true

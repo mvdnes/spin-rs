@@ -3,11 +3,14 @@
 use core::{
     cell::UnsafeCell,
     mem::MaybeUninit,
-    sync::atomic::{AtomicU8, Ordering},
     marker::PhantomData,
     fmt,
 };
-use crate::{RelaxStrategy, Spin};
+use crate::{
+    atomic::{AtomicU8, Ordering},
+    RelaxStrategy, Spin
+};
+
 
 /// A primitive that provides lazy one-time initialization.
 ///
