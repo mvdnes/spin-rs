@@ -92,6 +92,17 @@ The crate comes with a few feature flags that you may wish to use.
 
 - `std` enables support for thread yielding instead of spinning.
 
+- `portable_atomic` enables usage of the `portable-atomic` crate
+  to support platforms without native atomic operations (Cortex-M0, etc.).
+  The `portable_atomic_unsafe_assume_single_core` cfg flag
+  must also be set by the final binary crate.
+  This can be done by adapting the following snippet to the `.cargo/config` file:
+  ```
+  [target.<target>]
+  rustflags = [ "--cfg", "portable_atomic_unsafe_assume_single_core" ]
+  ```
+  Note that this feature is unsafe by nature, and enabling it for multicore systems is unsound.
+
 ## Remarks
 
 It is often desirable to have a lock shared between threads. Wrapping the lock in an

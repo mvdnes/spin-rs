@@ -60,6 +60,14 @@
 #[cfg(any(test, feature = "std"))]
 extern crate core;
 
+#[cfg(feature = "portable_atomic")]
+extern crate portable_atomic;
+
+#[cfg(feature = "portable_atomic")]
+use portable_atomic as atomic;
+#[cfg(not(feature = "portable_atomic"))]
+use core::sync::atomic;
+
 #[cfg(feature = "barrier")]
 #[cfg_attr(docsrs, doc(cfg(feature = "barrier")))]
 pub mod barrier;
