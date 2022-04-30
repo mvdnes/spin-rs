@@ -48,8 +48,9 @@ lock_api = ["lock_api_crate"]
 # Enables std-only features such as yield-relaxing.
 std = []
 
-# Use the portable_atomic crate to support platforms without native atomic operations (Cortex-M0, ARMv4, etc.)
-# NOTE by its nature,
+# Use the portable_atomic crate to support platforms without native atomic operations
+# cfg 'portable_atomic_unsafe_assume_single_core' must also be set by the final binary crate.
+# This is an unsafe feature and enabling it for multicore systems is unsound.
 portable_atomic = ["portable-atomic"]
 
 [package.metadata.docs.rs]
