@@ -101,7 +101,7 @@ The crate comes with a few feature flags that you may wish to use.
   [target.<target>]
   rustflags = [ "--cfg", "portable_atomic_unsafe_assume_single_core" ]
   ```
-  Note that this feature is unsafe by nature, and enabling it for multicore systems is unsound.
+  Note that this cfg is unsafe by nature, and enabling it for multicore systems is unsound.
 
 ## Remarks
 
