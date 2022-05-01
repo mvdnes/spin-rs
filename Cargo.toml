@@ -13,7 +13,7 @@ description = "Spin-based synchronization primitives"
 
 [dependencies]
 lock_api_crate = { package = "lock_api", version = "0.4", optional = true }
-portable-atomic = { version = "0.3", optional = true }
+portable-atomic = { version = "0.3", optional = true, default-features = false }
 
 [features]
 default = ["lock_api", "mutex", "spin_mutex", "rwlock", "once", "lazy", "barrier"]
@@ -50,7 +50,7 @@ std = []
 
 # Use the portable_atomic crate to support platforms without native atomic operations
 # cfg 'portable_atomic_unsafe_assume_single_core' must also be set by the final binary crate.
-# This is an unsafe feature and enabling it for multicore systems is unsound.
+# This cfg is unsafe and enabling it for multicore systems is unsound.
 portable_atomic = ["portable-atomic"]
 
 [package.metadata.docs.rs]
