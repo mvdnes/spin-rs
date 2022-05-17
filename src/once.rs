@@ -655,8 +655,11 @@ mod tests {
         }
     }
 
+    // This is sort of two test cases, but if we write them as separate test methods
+    // they can be executed concurrently and then fail some small fraction of the
+    // time.
     #[test]
-    fn drop_occurs() {
+    fn drop_occurs_and_skip_uninit_drop() {
         unsafe {
             CALLED = false;
         }
@@ -669,10 +672,7 @@ mod tests {
         assert!(unsafe {
             CALLED
         });
-    }
-
-    #[test]
-    fn skip_uninit_drop() {
+        // Now test that we skip drops for the uninitialized case.
         unsafe {
             CALLED = false;
         }
