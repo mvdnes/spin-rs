@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+# [0.9.4] - 2022-07-14
+
+### Fixed
+
+- Fixed unsoundness in `RwLock` on reader overflow
+- Relaxed `Send`/`Sync` bounds for `SpinMutex` and `TicketMutex` (doesn't affect `Mutex` itself)
+
 # [0.9.3] - 2022-04-17
 
 ### Added

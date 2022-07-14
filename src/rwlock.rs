@@ -253,7 +253,7 @@ impl<T: ?Sized, R> RwLock<T, R> {
         // An arbitrary cap that allows us to catch overflows long before they happen
         const MAX_READERS: usize = usize::MAX / READER / 2;
 
-        let value = self.lock.fetch_add(READER, Ordering::Relaxed);
+        let value = self.lock.fetch_add(READER, Ordering::Acquire);
 
         if value > MAX_READERS * READER {
             self.lock.fetch_sub(READER, Ordering::Relaxed);
