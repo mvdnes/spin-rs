@@ -76,8 +76,8 @@ pub struct SpinMutexGuard<'a, T: ?Sized + 'a> {
 }
 
 // Same unsafe impls as `std::sync::Mutex`
-unsafe impl<T: ?Sized + Send> Sync for SpinMutex<T> {}
-unsafe impl<T: ?Sized + Send> Send for SpinMutex<T> {}
+unsafe impl<T: ?Sized + Send, R> Sync for SpinMutex<T, R> {}
+unsafe impl<T: ?Sized + Send, R> Send for SpinMutex<T, R> {}
 
 impl<T, R> SpinMutex<T, R> {
     /// Creates a new [`SpinMutex`] wrapping the supplied data.
@@ -131,7 +131,7 @@ impl<T, R> SpinMutex<T, R> {
     ///
     /// unsafe {
     ///     core::mem::forget(lock.lock());
-    ///     
+    ///
     ///     assert_eq!(lock.as_mut_ptr().read(), 42);
     ///     lock.as_mut_ptr().write(58);
     ///

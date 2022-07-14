@@ -158,7 +158,7 @@ impl<T, R> RwLock<T, R> {
     ///
     /// unsafe {
     ///     core::mem::forget(lock.write());
-    ///     
+    ///
     ///     assert_eq!(lock.as_mut_ptr().read(), 42);
     ///     lock.as_mut_ptr().write(58);
     ///
@@ -248,6 +248,21 @@ impl<T: ?Sized, R: RelaxStrategy> RwLock<T, R> {
 }
 
 impl<T: ?Sized, R> RwLock<T, R> {
+    // Acquire a read lock, returning the new lock value.
+    fn acquire_reader(&self) -> usize {
+        // An arbitrary cap that allows us to catch overflows long before they happen
+        const MAX_READERS: usize = usize::MAX / READER / 2;
+
+        let value = self.lock.fetch_add(READER, Ordering::Acquire);
+
+        if value > MAX_READERS * READER {
+            self.lock.fetch_sub(READER, Ordering::Relaxed);
+            panic!("Too many lock readers, cannot safely proceed");
+        } else {
+            value
+        }
+    }
+
     /// Attempt to acquire this lock with shared read access.
     ///
     /// This function will never block and will return immediately if `read`
@@ -272,7 +287,7 @@ impl<T: ?Sized, R> RwLock<T, R> {
     /// ```
     #[inline]
     pub fn try_read(&self) -> Option<RwLockReadGuard<T>> {
-        let value = self.lock.fetch_add(READER, Ordering::Acquire);
+        let value = self.acquire_reader();
 
         // We check the UPGRADED bit here so that new readers are prevented when an UPGRADED lock is held.
         // This helps reduce writer starvation.
@@ -557,7 +572,7 @@ impl<'rwlock, T: ?Sized, R> RwLockUpgradableGuard<'rwlock, T, R> {
     /// ```
     pub fn downgrade(self) -> RwLockReadGuard<'rwlock, T> {
         // Reserve the read guard for ourselves
-        self.inner.lock.fetch_add(READER, Ordering::Acquire);
+        self.inner.acquire_reader();
 
         let inner = self.inner;
 
@@ -616,7 +631,7 @@ impl<'rwlock, T: ?Sized, R> RwLockWriteGuard<'rwlock, T, R> {
     #[inline]
     pub fn downgrade(self) -> RwLockReadGuard<'rwlock, T> {
         // Reserve the read guard for ourselves
-        self.inner.lock.fetch_add(READER, Ordering::Acquire);
+        self.inner.acquire_reader();
 
         let inner = self.inner;
 
