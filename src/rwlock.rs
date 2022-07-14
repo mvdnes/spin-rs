@@ -250,19 +250,16 @@ impl<T: ?Sized, R: RelaxStrategy> RwLock<T, R> {
 impl<T: ?Sized, R> RwLock<T, R> {
     // Acquire a read lock, returning the new lock value.
     fn acquire_reader(&self) -> usize {
-        loop {
-            let value = self.lock.load(Ordering::Relaxed);
+        // An arbitrary cap that allows us to catch overflows long before they happen
+        const MAX_READERS: usize = usize::MAX / READER / 2;
 
-            if value < usize::MAX - READER {
-                if self.lock
-                    .compare_exchange_weak(value, value + READER, Ordering::Acquire, Ordering::Relaxed)
-                    .is_ok()
-                {
-                    break value + READER
-                }
-            } else {
-                panic!("Too many lock readers, cannot safely proceed: {:X}, {:X}", value, usize::MAX - READER)
-            }
+        let value = self.lock.fetch_add(READER, Ordering::Relaxed);
+
+        if value > MAX_READERS * READER {
+            self.lock.fetch_sub(READER, Ordering::Relaxed);
+            panic!("Too many lock readers, cannot safely proceed");
+        } else {
+            value
         }
     }
 
