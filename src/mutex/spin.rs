@@ -294,7 +294,7 @@ impl<'a, T: ?Sized> SpinMutexGuard<'a, T> {
     pub fn leak(this: Self) -> &'a mut T {
         // Use ManuallyDrop to avoid stacked-borrow invalidation
         let mut this = ManuallyDrop::new(this);
-        // Read out the mut-ref to avoid lifetime issues
+        // We know statically that only we are referencing data
         unsafe { &mut *this.data }
     }
 }
