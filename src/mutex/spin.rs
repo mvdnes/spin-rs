@@ -8,6 +8,7 @@ use core::{
     fmt,
     ops::{Deref, DerefMut},
     marker::PhantomData,
+    mem::ManuallyDrop,
 };
 use crate::{
     atomic::{AtomicBool, Ordering},
@@ -72,7 +73,7 @@ pub struct SpinMutex<T: ?Sized, R = Spin> {
 /// When the guard falls out of scope it will release the lock.
 pub struct SpinMutexGuard<'a, T: ?Sized + 'a> {
     lock: &'a AtomicBool,
-    data: &'a mut T,
+    data: *mut T,
 }
 
 // Same unsafe impls as `std::sync::Mutex`
@@ -291,9 +292,10 @@ impl<'a, T: ?Sized> SpinMutexGuard<'a, T> {
     /// ```
     #[inline(always)]
     pub fn leak(this: Self) -> &'a mut T {
-        let data = this.data as *mut _; // Keep it in pointer form temporarily to avoid double-aliasing
-        core::mem::forget(this);
-        unsafe { &mut *data }
+        // Use ManuallyDrop to avoid stacked-borrow invalidation
+        let mut this = ManuallyDrop::new(this);
+        // We know statically that only we are referencing data
+        unsafe { &mut *this.data }
     }
 }
 
@@ -312,13 +314,15 @@ impl<'a, T: ?Sized + fmt::Display> fmt::Display for SpinMutexGuard<'a, T> {
 impl<'a, T: ?Sized> Deref for SpinMutexGuard<'a, T> {
     type Target = T;
     fn deref(&self) -> &T {
-        self.data
+        // We know statically that only we are referencing data
+        unsafe { &*self.data }
     }
 }
 
 impl<'a, T: ?Sized> DerefMut for SpinMutexGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
-        self.data
+        // We know statically that only we are referencing data
+        unsafe { &mut *self.data }
     }
 }
 
