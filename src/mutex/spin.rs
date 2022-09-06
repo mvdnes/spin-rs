@@ -8,8 +8,8 @@ use core::{
     fmt,
     ops::{Deref, DerefMut},
     marker::PhantomData,
+    mem::ManuallyDrop,
 };
-use core::mem::ManuallyDrop;
 use crate::{
     atomic::{AtomicBool, Ordering},
     RelaxStrategy, Spin
