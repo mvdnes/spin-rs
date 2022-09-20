@@ -65,3 +65,11 @@ portable_atomic = ["portable-atomic"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[dev-dependencies]
+criterion = "0.4"
+
+[[bench]]
+name = "mutex"
+harness = false
+required-features = ["ticket_mutex"]
