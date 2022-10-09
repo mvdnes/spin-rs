@@ -53,6 +53,9 @@ std = []
 # This cfg is unsafe and enabling it for multicore systems is unsound.
 portable_atomic = ["portable-atomic"]
 
+[dev-dependencies]
+waker-fn = "1.1.0"
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

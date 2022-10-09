@@ -6,6 +6,7 @@ use core::{
     marker::PhantomData,
     fmt,
     mem,
+    pin::Pin
 };
 use crate::{
     atomic::{AtomicUsize, Ordering},
@@ -206,6 +207,30 @@ impl<T: ?Sized, R: RelaxStrategy> RwLock<T, R> {
         }
     }
 
+    /// Locks a pinned rwlock with shared read access, returning a pinned version of
+    /// the guard.
+    ///
+    /// This is useful for when the data is pinned in memory, such as when it is stored in a
+    /// future.
+    ///
+    /// ```
+    /// let mylock = spin::RwLock::new(0);
+    /// let mylock = Box::pin(mylock);
+    /// 
+    /// let guard = mylock.as_ref().read_pinned(); 
+    /// assert_eq!(*guard, 0);
+    /// ```
+    #[inline]
+    pub fn read_pinned(self: Pin<&Self>) -> Pin<RwLockReadGuard<T>> {
+        let guard = self.get_ref().read();
+
+        // SAFETY: The inner value is guaranteed to be pinned because the mutex is pinned.
+        // We never move ourselves out of the guard
+        unsafe {
+            Pin::new_unchecked(guard)
+        }
+    }
+
     /// Lock this rwlock with exclusive write access, blocking the current
     /// thread until it can be acquired.
     ///
@@ -234,6 +259,42 @@ impl<T: ?Sized, R: RelaxStrategy> RwLock<T, R> {
         }
     }
 
+    /// Locks a pinned rwlock with exclusive write access, returning a pinned version of
+    /// the guard.
+    ///
+    /// This is useful for when the data is pinned in memory, such as when it is stored in a
+    /// future.
+    ///
+    /// ```
+    /// use std::{future::{Future, ready}, task::{Context, Poll}};
+    /// # use std::task::Waker;
+    /// 
+    /// // Create a future and protect it with a spin mutex.
+    /// let my_future = ready(1);
+    /// let lock = spin::RwLock::<_>::new(my_future);
+    /// let lock = Box::pin(lock);
+    /// 
+    /// // Poll the future.
+    /// let waker = noop_waker();
+    /// let mut cx = Context::from_waker(&waker);
+    /// let mut result = lock.as_ref().write_pinned();
+    /// assert_eq!(result.as_mut().poll(&mut cx), Poll::Ready(1));
+    /// # 
+    /// # fn noop_waker() -> Waker {
+    /// #     waker_fn::waker_fn(|| {})
+    /// # }
+    /// ```
+    #[inline]
+    pub fn write_pinned(self: Pin<&Self>) -> Pin<RwLockWriteGuard<T, R>> {
+        let guard = self.get_ref().write();
+
+        // SAFETY: The inner value is guaranteed to be pinned because the mutex is pinned.
+        // We never move ourselves out of the guard
+        unsafe {
+            Pin::new_unchecked(guard)
+        }
+    }
+
     /// Obtain a readable lock guard that can later be upgraded to a writable lock guard.
     /// Upgrades can be done through the [`RwLockUpgradableGuard::upgrade`](RwLockUpgradableGuard::upgrade) method.
     #[inline]
@@ -243,6 +304,31 @@ impl<T: ?Sized, R: RelaxStrategy> RwLock<T, R> {
                 Some(guard) => return guard,
                 None => R::relax(),
             }
+        }
+    }
+
+
+    /// Locks a pinned rwlock with upgradable read access, returning a pinned version of
+    /// the guard.
+    ///
+    /// This is useful for when the data is pinned in memory, such as when it is stored in a
+    /// future.
+    ///
+    /// ```
+    /// let mylock = spin::RwLock::new(0);
+    /// let mylock = Box::pin(mylock);
+    /// 
+    /// let guard = mylock.as_ref().upgradeable_read_pinned(); 
+    /// assert_eq!(*guard, 0);
+    /// ```
+    #[inline]
+    pub fn upgradeable_read_pinned(self: Pin<&Self>) -> Pin<RwLockUpgradableGuard<T, R>> {
+        let guard = self.get_ref().upgradeable_read();
+
+        // SAFETY: The inner value is guaranteed to be pinned because the mutex is pinned.
+        // We never move ourselves out of the guard
+        unsafe {
+            Pin::new_unchecked(guard)
         }
     }
 }
@@ -300,6 +386,30 @@ impl<T: ?Sized, R> RwLock<T, R> {
                 lock: &self.lock,
                 data: unsafe { &*self.data.get() },
             })
+        }
+    }
+
+    /// Tries to lock a pinned rwlock with shared read access, returning a pinned version of
+    /// the guard.
+    ///
+    /// This is useful for when the data is pinned in memory, such as when it is stored in a
+    /// future.
+    ///
+    /// ```
+    /// let mylock = spin::RwLock::new(0);
+    /// let mylock = Box::pin(mylock);
+    /// 
+    /// let guard = mylock.as_ref().try_read_pinned().unwrap(); 
+    /// assert_eq!(*guard, 0);
+    /// ```
+    #[inline]
+    pub fn try_read_pinned(self: Pin<&Self>) -> Option<Pin<RwLockReadGuard<T>>>{
+        let guard = self.get_ref().try_read();
+
+        // SAFETY: The inner value is guaranteed to be pinned because the mutex is pinned.
+        // We never move ourselves out of the guard
+        unsafe {
+            guard.map(|guard| Pin::new_unchecked(guard))
         }
     }
 
@@ -400,6 +510,42 @@ impl<T: ?Sized, R> RwLock<T, R> {
         self.try_write_internal(true)
     }
 
+    /// Tries to lock a pinned rwlock with exclusive write access, returning a pinned version of
+    /// the guard.
+    ///
+    /// This is useful for when the data is pinned in memory, such as when it is stored in a
+    /// future.
+    ///
+    /// ```
+    /// use std::{future::{Future, ready}, task::{Context, Poll}};
+    /// # use std::task::Waker;
+    /// 
+    /// // Create a future and protect it with a spin mutex.
+    /// let my_future = ready(1);
+    /// let lock = spin::RwLock::<_>::new(my_future);
+    /// let lock = Box::pin(lock);
+    /// 
+    /// // Poll the future.
+    /// let waker = noop_waker();
+    /// let mut cx = Context::from_waker(&waker);
+    /// let mut result = lock.as_ref().try_write_pinned().unwrap();
+    /// assert_eq!(result.as_mut().poll(&mut cx), Poll::Ready(1));
+    /// # 
+    /// # fn noop_waker() -> Waker {
+    /// #     waker_fn::waker_fn(|| {})
+    /// # }
+    /// ```
+    #[inline]
+    pub fn try_write_pinned(self: Pin<&Self>) -> Option<Pin<RwLockWriteGuard<T, R>>> {
+        let guard = self.get_ref().try_write();
+
+        // SAFETY: The inner value is guaranteed to be pinned because the mutex is pinned.
+        // We never move ourselves out of the guard
+        unsafe {
+            guard.map(|guard| Pin::new_unchecked(guard))
+        }
+    }
+
     /// Tries to obtain an upgradeable lock guard.
     #[inline]
     pub fn try_upgradeable_read(&self) -> Option<RwLockUpgradableGuard<T, R>> {
@@ -413,6 +559,30 @@ impl<T: ?Sized, R> RwLock<T, R> {
             // We can't unflip the UPGRADED bit back just yet as there is another upgradeable or write lock.
             // When they unlock, they will clear the bit.
             None
+        }
+    }
+
+    /// Tries to lock a pinned rwlock with upgradable read access, returning a pinned version of
+    /// the guard.
+    ///
+    /// This is useful for when the data is pinned in memory, such as when it is stored in a
+    /// future.
+    ///
+    /// ```
+    /// let mylock = spin::RwLock::new(0);
+    /// let mylock = Box::pin(mylock);
+    /// 
+    /// let guard = mylock.as_ref().try_upgradeable_read_pinned().unwrap(); 
+    /// assert_eq!(*guard, 0);
+    /// ```
+    #[inline]
+    pub fn try_upgradeable_read_pinned(self: Pin<&Self>) -> Option<Pin<RwLockUpgradableGuard<T, R>>> {
+        let guard = self.get_ref().try_upgradeable_read();
+
+        // SAFETY: The inner value is guaranteed to be pinned because the mutex is pinned.
+        // We never move ourselves out of the guard
+        unsafe {
+            guard.map(|guard| Pin::new_unchecked(guard))
         }
     }
 
@@ -509,6 +679,27 @@ impl<'rwlock, T: ?Sized, R: RelaxStrategy> RwLockUpgradableGuard<'rwlock, T, R> 
             R::relax();
         }
     }
+
+    /// Upgrades a pinned upgradeable lock guard to a writable lock guard, which will
+    /// also be pinned.
+    /// 
+    /// ```
+    /// let mylock = spin::RwLock::new(0);
+    /// let mylock = Box::pin(mylock);
+    /// 
+    /// let upgradeable = mylock.as_ref().upgradeable_read_pinned(); // Readable, but not yet writable
+    /// let writable = spin::RwLockUpgradableGuard::upgrade_pinned(upgradeable);
+    /// ```
+    #[inline]
+    pub fn upgrade_pinned(this: Pin<Self>) -> Pin<RwLockWriteGuard<'rwlock, T, R>> {
+        // SAFETY: The inner value is guaranteed to be pinned because the mutex is pinned.
+        // We never move ourselves out of the guard
+        unsafe {
+            let this = Pin::into_inner_unchecked(this);
+            let guard = this.upgrade();
+            Pin::new_unchecked(guard)
+        }
+    }
 }
 
 impl<'rwlock, T: ?Sized, R> RwLockUpgradableGuard<'rwlock, T, R> {
@@ -556,6 +747,27 @@ impl<'rwlock, T: ?Sized, R> RwLockUpgradableGuard<'rwlock, T, R> {
         self.try_upgrade_internal(true)
     }
 
+    /// Upgrades a pinned upgradeable lock guard to a writable lock guard, which will
+    /// also be pinned.
+    /// 
+    /// ```
+    /// let mylock = spin::RwLock::new(0);
+    /// let mylock = Box::pin(mylock);
+    /// 
+    /// let upgradeable = mylock.as_ref().upgradeable_read_pinned(); // Readable, but not yet writable
+    /// let writable = spin::RwLockUpgradableGuard::try_upgrade_pinned(upgradeable).unwrap();
+    /// ```
+    #[inline]
+    pub fn try_upgrade_pinned(this: Pin<Self>) -> Result<Pin<RwLockWriteGuard<'rwlock, T, R>>, Pin<Self>> {
+        // SAFETY: The inner value is guaranteed to be pinned because the mutex is pinned.
+        // We never move ourselves out of the guard
+        unsafe {
+            let this = Pin::into_inner_unchecked(this);
+            let guard = this.try_upgrade().map_err(|e| Pin::new_unchecked(e))?;
+            Ok(Pin::new_unchecked(guard))
+        }
+    }
+
     #[inline]
     /// Downgrades the upgradeable lock guard to a readable, shared lock guard. Cannot fail and is guaranteed not to spin.
     ///
@@ -582,6 +794,28 @@ impl<'rwlock, T: ?Sized, R> RwLockUpgradableGuard<'rwlock, T, R> {
         RwLockReadGuard {
             lock: &inner.lock,
             data: unsafe { &*inner.data.get() },
+        }
+    }
+
+    #[inline]
+    /// Downgrades a pinned upgradeable lock guard to a pinned readable lock. 
+    ///
+    /// ```
+    /// let mylock = spin::RwLock::new(1);
+    /// let mylock = Box::pin(mylock);
+    ///
+    /// let upgradeable = mylock.as_ref().upgradeable_read_pinned();
+    /// assert!(mylock.try_read().is_none());
+    /// assert_eq!(*upgradeable, 1);
+    ///
+    /// let readable = spin::RwLockUpgradableGuard::downgrade_pinned(upgradeable); // This is guaranteed not to spin
+    /// assert!(mylock.try_read().is_some());
+    /// assert_eq!(*readable, 1);
+    /// ```
+    pub fn downgrade_pinned(this: Pin<Self>) -> Pin<RwLockReadGuard<'rwlock, T>> {
+        unsafe {
+            let this2 = Pin::into_inner_unchecked(this);
+            Pin::new_unchecked(this2.downgrade()) 
         }
     }
 

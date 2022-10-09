@@ -10,6 +10,7 @@ use core::{
     fmt,
     ops::{Deref, DerefMut},
     marker::PhantomData,
+    pin::Pin
 };
 use crate::{
     atomic::{AtomicUsize, Ordering},
@@ -201,6 +202,41 @@ impl<T: ?Sized, R: RelaxStrategy> TicketMutex<T, R> {
             data: unsafe { &mut *self.data.get() },
         }
     }
+
+    /// Locks a pinned [`TicketMutex`] and returns a pinned version of the mutex guard.
+    /// 
+    /// This is useful for when the data is pinned in memory, such as when it is stored in a
+    /// future.
+    /// 
+    /// ```
+    /// use std::{future::{Future, ready}, task::{Context, Poll}};
+    /// # use std::task::Waker;
+    /// 
+    /// // Create a future and protect it with a spin mutex.
+    /// let my_future = ready(1);
+    /// let lock = spin::mutex::TicketMutex::<_>::new(my_future);
+    /// let lock = Box::pin(lock);
+    /// 
+    /// // Poll the future.
+    /// let waker = noop_waker();
+    /// let mut cx = Context::from_waker(&waker);
+    /// let mut result = lock.as_ref().lock_pinned();
+    /// assert_eq!(result.as_mut().poll(&mut cx), Poll::Ready(1));
+    /// # 
+    /// # fn noop_waker() -> Waker {
+    /// #     waker_fn::waker_fn(|| {})
+    /// # }
+    /// ```
+    #[inline(always)]
+    pub fn lock_pinned(self: Pin<&Self>) -> Pin<TicketMutexGuard<T>> {
+       let guard = self.get_ref().lock();
+
+        // SAFETY: The inner value is guaranteed to be pinned because the mutex is pinned.
+        // We never move ourselves out of the guard.
+        unsafe { 
+            Pin::new_unchecked(guard)
+        }
+    }
 }
 
 impl<T: ?Sized, R> TicketMutex<T, R> {
@@ -263,6 +299,41 @@ impl<T: ?Sized, R> TicketMutex<T, R> {
             // - that we are the next one to be served so we have exclusive access to the data
             data: unsafe { &mut *self.data.get() },
         })
+    }
+
+    /// Tries to lock a pinned [`TickeMutex`] and returns a pinned version of the mutex guard.
+    /// 
+    /// This is useful for when the data is pinned in memory, such as when it is stored in a
+    /// future.
+    /// 
+    /// ```
+    /// use std::{future::{Future, ready}, task::{Context, Poll}};
+    /// # use std::task::Waker;
+    /// 
+    /// // Create a future and protect it with a spin mutex.
+    /// let my_future = ready(1);
+    /// let lock = spin::mutex::TicketMutex::<_>::new(my_future);
+    /// let lock = Box::pin(lock);
+    /// 
+    /// // Poll the future.
+    /// let waker = noop_waker();
+    /// let mut cx = Context::from_waker(&waker);
+    /// let mut result = lock.as_ref().try_lock_pinned().unwrap();
+    /// assert_eq!(result.as_mut().poll(&mut cx), Poll::Ready(1));
+    /// # 
+    /// # fn noop_waker() -> Waker {
+    /// #     waker_fn::waker_fn(|| {})
+    /// # }
+    /// ```
+    #[inline(always)]
+    pub fn try_lock_pinned(self: Pin<&Self>) -> Option<Pin<TicketMutexGuard<T>>> {
+       let guard = self.get_ref().try_lock();
+
+        // SAFETY: The inner value is guaranteed to be pinned because the mutex is pinned.
+        // We never move ourselves out of the guard.
+        unsafe { 
+            guard.map(|guard| Pin::new_unchecked(guard))
+        }
     }
 
     /// Returns a mutable reference to the underlying data.
