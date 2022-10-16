@@ -33,13 +33,13 @@ jobs:
     - name: Ensure we don't depend on libstd
       run: cargo hack build --target thumbv7m-none-eabi --no-dev-deps --no-default-features
 
-    miri:
-      runs-on: ubuntu-latest
-      steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        run: rustup update nightly --component miri && rustup default nightly
-      - run: cargo miri test
-        env:
-          MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation
-          RUSTFLAGS: ${{ env.RUSTFLAGS }} -Z randomize-layout
+  miri:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Rust
+      run: rustup update nightly --component miri && rustup default nightly
+    - run: cargo miri test
+      env:
+        MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation
+        RUSTFLAGS: ${{ env.RUSTFLAGS }} -Z randomize-layout
