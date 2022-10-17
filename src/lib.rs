@@ -54,6 +54,9 @@
 //! - `lock_api` enables support for [`lock_api`](https://crates.io/crates/lock_api)
 //!
 //! - `ticket_mutex` uses a ticket lock for the implementation of `Mutex`
+//! 
+//! - `fair_mutex` enables a fairer implementation of `Mutex` that uses eventual fairness to avoid
+//!   starvation
 //!
 //! - `std` enables support for thread yielding instead of spinning
 

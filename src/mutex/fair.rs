@@ -93,6 +93,16 @@ pub struct Starvation<'a, T: ?Sized + 'a, R> {
     lock: &'a FairMutex<T, R>
 }
 
+/// Indicates whether a lock was rejected due to the lock being held by another thread or due to starvation.
+#[derive(Debug)]
+pub enum LockRejectReason {
+    /// The lock was rejected due to the lock being held by another thread.
+    Locked,
+
+    /// The lock was rejected due to starvation.
+    Starved,
+}
+
 // Same unsafe impls as `std::sync::Mutex`
 unsafe impl<T: ?Sized + Send, R> Sync for FairMutex<T, R> {}
 unsafe impl<T: ?Sized + Send, R> Send for FairMutex<T, R> {}
@@ -246,15 +256,20 @@ impl<T: ?Sized, R> FairMutex<T, R> {
     /// ```
     #[inline(always)]
     pub fn try_lock(&self) -> Option<FairMutexGuard<T>> {
-        // The reason for using a strong compare_exchange is explained here:
-        // https://github.com/Amanieu/parking_lot/pull/207#issuecomment-575869107
-        if self.lock.compare_exchange(0, LOCKED, Ordering::Acquire, Ordering::Relaxed).is_ok() {
-            Some(FairMutexGuard {
+        self.try_lock_starver().ok()
+    }
+
+    /// Tries to lock this [`FairMutex`] and returns a result that indicates whether the lock was
+    /// rejected due to a starver or not.
+    #[inline(always)]
+    pub fn try_lock_starver(&self) -> Result<FairMutexGuard<T>, LockRejectReason> {
+        match self.lock.compare_exchange(0, LOCKED, Ordering::Acquire, Ordering::Relaxed).unwrap_or_else(|x| x) {
+            0 => Ok(FairMutexGuard {
                 lock: &self.lock,
                 data: unsafe { &mut *self.data.get() },
-            })
-        } else {
-            None
+            }),
+            LOCKED => Err(LockRejectReason::Locked),
+            _ => Err(LockRejectReason::Starved),
         }
     }
 
@@ -497,6 +512,18 @@ impl<'a, T: ?Sized, R> Drop for Starvation<'a, T, R> {
         self.lock.lock.fetch_sub(STARVED, Ordering::Release);
     }
 }
+
+impl fmt::Display for LockRejectReason {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            LockRejectReason::Locked => write!(f, "locked"),
+            LockRejectReason::Starved => write!(f, "starved"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for LockRejectReason {}
 
 #[cfg(feature = "lock_api")]
 unsafe impl<R: RelaxStrategy> lock_api_crate::RawMutex for FairMutex<(), R> {
