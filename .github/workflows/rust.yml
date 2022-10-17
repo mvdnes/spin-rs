@@ -41,5 +41,5 @@ jobs:
       run: rustup toolchain install nightly --component miri && rustup default nightly
     - run: cargo miri test
       env:
-        MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation
+        MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation -Zmiri-ignore-leaks
         RUSTFLAGS: ${{ env.RUSTFLAGS }} -Z randomize-layout
