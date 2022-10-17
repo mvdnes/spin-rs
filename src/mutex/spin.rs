@@ -11,9 +11,17 @@ use core::{
     mem::ManuallyDrop,
 };
 use crate::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicUsize, Ordering},
     RelaxStrategy, Spin
 };
+
+// The lowest bit of `lock` is used to indicate whether the mutex is locked or not. The rest of the bits are used to
+// store the number of starving threads.
+const LOCKED: usize = 1;
+const STARVED: usize = 2;
+
+/// Number chosen by fair roll of the dice, adjust as needed.
+const STARVATION_SPINS: usize = 1024;
 
 /// A [spin lock](https://en.m.wikipedia.org/wiki/Spinlock) providing mutually exclusive access to data.
 ///
@@ -64,7 +72,7 @@ use crate::{
 /// ```
 pub struct SpinMutex<T: ?Sized, R = Spin> {
     phantom: PhantomData<R>,
-    pub(crate) lock: AtomicBool,
+    pub(crate) lock: AtomicUsize,
     data: UnsafeCell<T>,
 }
 
@@ -72,8 +80,15 @@ pub struct SpinMutex<T: ?Sized, R = Spin> {
 ///
 /// When the guard falls out of scope it will release the lock.
 pub struct SpinMutexGuard<'a, T: ?Sized + 'a> {
-    lock: &'a AtomicBool,
+    lock: &'a AtomicUsize,
     data: *mut T,
+}
+
+/// A handle that indicates that we have been trying to acquire the lock for a while.
+/// 
+/// This handle is used to prevent starvation.
+pub struct Starvation<'a, T: ?Sized + 'a, R> {
+    lock: &'a SpinMutex<T, R>
 }
 
 // Same unsafe impls as `std::sync::Mutex`
@@ -99,7 +114,7 @@ impl<T, R> SpinMutex<T, R> {
     #[inline(always)]
     pub const fn new(data: T) -> Self {
         SpinMutex {
-            lock: AtomicBool::new(false),
+            lock: AtomicUsize::new(0),
             data: UnsafeCell::new(data),
             phantom: PhantomData,
         }
@@ -167,10 +182,18 @@ impl<T: ?Sized, R: RelaxStrategy> SpinMutex<T, R> {
     pub fn lock(&self) -> SpinMutexGuard<T> {
         // Can fail to lock even if the spinlock is not locked. May be more efficient than `try_lock`
         // when called in a loop.
-        while self.lock.compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed).is_err() {
+        let mut spins = 0;
+        while self.lock.compare_exchange_weak(0, 1, Ordering::Acquire, Ordering::Relaxed).is_err() {
             // Wait until the lock looks unlocked before retrying
             while self.is_locked() {
                 R::relax();
+
+                // If we've been spinning for a while, switch to a fairer strategy that will prevent
+                // newer users from stealing our lock us.
+                spins += 1;
+                if spins > STARVATION_SPINS {
+                    return self.starve().lock();
+                }
             }
         }
 
@@ -190,7 +213,7 @@ impl<T: ?Sized, R> SpinMutex<T, R> {
     /// the instant it is called. Do not use it for synchronization purposes. However, it may be useful as a heuristic.
     #[inline(always)]
     pub fn is_locked(&self) -> bool {
-        self.lock.load(Ordering::Relaxed)
+        self.lock.load(Ordering::Relaxed) & LOCKED != 0
     }
 
     /// Force unlock this [`SpinMutex`].
@@ -202,7 +225,7 @@ impl<T: ?Sized, R> SpinMutex<T, R> {
     /// lock to FFI that doesn't know how to deal with RAII.
     #[inline(always)]
     pub unsafe fn force_unlock(&self) {
-        self.lock.store(false, Ordering::Release);
+        self.lock.fetch_and(!LOCKED, Ordering::Release);
     }
 
     /// Try to lock this [`SpinMutex`], returning a lock guard if successful.
@@ -223,7 +246,7 @@ impl<T: ?Sized, R> SpinMutex<T, R> {
     pub fn try_lock(&self) -> Option<SpinMutexGuard<T>> {
         // The reason for using a strong compare_exchange is explained here:
         // https://github.com/Amanieu/parking_lot/pull/207#issuecomment-575869107
-        if self.lock.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).is_ok() {
+        if self.lock.compare_exchange(0, LOCKED, Ordering::Acquire, Ordering::Relaxed).is_ok() {
             Some(SpinMutexGuard {
                 lock: &self.lock,
                 data: unsafe { &mut *self.data.get() },
@@ -231,6 +254,49 @@ impl<T: ?Sized, R> SpinMutex<T, R> {
         } else {
             None
         }
+    }
+
+    /// Indicates that the current user has been waiting for the lock for a while
+    /// and that the lock should yield to this thread over a newly arriving thread.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// let lock = spin::mutex::SpinMutex::<_>::new(42);
+    /// 
+    /// // Lock the mutex to simulate it being used by another user.
+    /// let guard1 = lock.lock();
+    /// 
+    /// // Try to lock the mutex.
+    /// let guard2 = lock.try_lock();
+    /// assert!(guard2.is_none());
+    /// 
+    /// // Wait for a while.
+    /// wait_for_a_while();
+    /// 
+    /// // We are now starved, indicate as such.
+    /// let starve = lock.starve();
+    /// 
+    /// // Once the lock is released, another user trying to lock it will
+    /// // fail.
+    /// drop(guard1);
+    /// let guard3 = lock.try_lock();
+    /// assert!(guard3.is_none());
+    /// 
+    /// // However, we will be able to lock it.
+    /// let guard4 = starve.try_lock();
+    /// assert!(guard4.is_ok());
+    /// 
+    /// # fn wait_for_a_while() {}
+    /// ```
+    pub fn starve(&self) -> Starvation<'_, T, R> {
+        // Add a new starver to the state.
+        if self.lock.fetch_add(STARVED, Ordering::Relaxed) > (isize::MAX - 1) as usize {
+            // In the event of a potential lock overflow, abort.
+            crate::abort();
+        }
+
+        Starvation { lock: self }
     }
 
     /// Returns a mutable reference to the underlying data.
@@ -329,7 +395,98 @@ impl<'a, T: ?Sized> DerefMut for SpinMutexGuard<'a, T> {
 impl<'a, T: ?Sized> Drop for SpinMutexGuard<'a, T> {
     /// The dropping of the MutexGuard will release the lock it was created from.
     fn drop(&mut self) {
-        self.lock.store(false, Ordering::Release);
+        self.lock.fetch_and(!LOCKED, Ordering::Release);
+    }
+}
+
+impl<'a, T: ?Sized, R> Starvation<'a, T, R> {
+    /// Attempts the lock the mutex if we are the only starving user.
+    /// 
+    /// This allows another user to lock the mutex if they are starving as well.
+    pub fn try_lock_fair(self) -> Result<SpinMutexGuard<'a, T>, Self> {
+        // Try to lock the mutex.
+        if self.lock.lock.compare_exchange(STARVED, STARVED | LOCKED, Ordering::Acquire, Ordering::Relaxed).is_ok() {
+            // We are the only starving user, lock the mutex.
+            Ok(SpinMutexGuard {
+                lock: &self.lock.lock,
+                data: self.lock.data.get(),
+            })
+        } else {
+            // Another user is starving, fail.
+            Err(self)
+        }
+    }
+
+    /// Attempts to lock the mutex.
+    /// 
+    /// If the lock is currently held by another thread, this will return `None`.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// let lock = spin::mutex::SpinMutex::<_>::new(42);
+    /// 
+    /// // Lock the mutex to simulate it being used by another user.
+    /// let guard1 = lock.lock();
+    /// 
+    /// // Try to lock the mutex.
+    /// let guard2 = lock.try_lock();
+    /// assert!(guard2.is_none());
+    /// 
+    /// // Wait for a while.
+    /// wait_for_a_while();
+    /// 
+    /// // We are now starved, indicate as such.
+    /// let starve = lock.starve();
+    /// 
+    /// // Once the lock is released, another user trying to lock it will
+    /// // fail.
+    /// drop(guard1);
+    /// let guard3 = lock.try_lock();
+    /// assert!(guard3.is_none());
+    /// 
+    /// // However, we will be able to lock it.
+    /// let guard4 = starve.try_lock();
+    /// assert!(guard4.is_ok());
+    /// 
+    /// # fn wait_for_a_while() {}
+    /// ```
+    pub fn try_lock(self) -> Result<SpinMutexGuard<'a, T>, Self> {
+        // Try to lock the mutex.
+        if self.lock.lock.fetch_or(LOCKED, Ordering::Acquire) & LOCKED == 0 {
+            // We have successfully locked the mutex.
+            Ok(SpinMutexGuard {
+                lock: &self.lock.lock,
+                data: self.lock.data.get(),
+            })
+        } else {
+            Err(self)
+        }
+    }
+}
+
+impl<'a, T: ?Sized, R: RelaxStrategy> Starvation<'a, T, R> {
+    /// Locks the mutex.
+    pub fn lock(mut self) -> SpinMutexGuard<'a, T> {
+        // Try to lock the mutex.
+        loop {
+            match self.try_lock() {
+                Ok(lock) => return lock,
+                Err(starve) => self = starve,
+            }
+
+            // Relax until the lock is released.
+            while self.lock.is_locked() {
+                R::relax();
+            }
+        }
+    }
+}
+
+impl<'a, T: ?Sized, R> Drop for Starvation<'a, T, R> {
+    fn drop(&mut self) {
+        // As there is no longer a user being starved, we decrement the starver count.
+        self.lock.lock.fetch_sub(STARVED, Ordering::Release);
     }
 }
 

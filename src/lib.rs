@@ -192,3 +192,26 @@ pub mod lock_api {
     pub type RwLockUpgradableReadGuard<'a, T> =
         lock_api_crate::RwLockUpgradableReadGuard<'a, crate::RwLock<()>, T>;
 }
+
+/// In the event of an invalid operation, it's best to abort the current process.
+fn abort() -> !{
+    #[cfg(not(feature = "std"))]
+    {
+        // Panicking while panicking is defined by Rust to result in an abort.
+        struct Panic;
+
+        impl Drop for Panic {
+            fn drop(&mut self) {
+                panic!("aborting due to invalid operation");
+            }
+        }
+
+        let _panic = Panic;
+        panic!("aborting due to invalid operation");
+    }
+
+    #[cfg(feature = "std")]
+    {
+        std::process::abort();
+    }
+}
