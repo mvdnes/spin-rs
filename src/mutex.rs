@@ -27,6 +27,13 @@ pub mod ticket;
 #[cfg_attr(docsrs, doc(cfg(feature = "ticket_mutex")))]
 pub use self::ticket::{TicketMutex, TicketMutexGuard};
 
+#[cfg(feature = "fair_mutex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fair_mutex")))]
+pub mod fair;
+#[cfg(feature = "fair_mutex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fair_mutex")))]
+pub use self::fair::{FairMutex, FairMutexGuard, Starvation};
+
 use core::{
     fmt,
     ops::{Deref, DerefMut},
