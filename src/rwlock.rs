@@ -251,7 +251,7 @@ impl<T: ?Sized, R> RwLock<T, R> {
     // Acquire a read lock, returning the new lock value.
     fn acquire_reader(&self) -> usize {
         // An arbitrary cap that allows us to catch overflows long before they happen
-        const MAX_READERS: usize = usize::MAX / READER / 2;
+        const MAX_READERS: usize = core::usize::MAX / READER / 2;
 
         let value = self.lock.fetch_add(READER, Ordering::Acquire);
 

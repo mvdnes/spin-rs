@@ -127,6 +127,11 @@ time for your crate's users. You can do this like so:
 spin = { version = "x.y", default-features = false, features = [...] }
 ```
 
+## Minimum Safe Rust Version (MSRV)
+
+This crate is guaranteed to compile on a Minimum Safe Rust Version (MSRV) of 1.38.0 and above.
+This version will not be changed without a minor version bump.
+
 ## License
 
 `spin` is distributed under the MIT License, (See `LICENSE`).
