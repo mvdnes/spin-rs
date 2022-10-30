@@ -202,10 +202,10 @@ impl<T: ?Sized, R: RelaxStrategy> FairMutex<T, R> {
 
                 // If we've been spinning for a while, switch to a fairer strategy that will prevent
                 // newer users from stealing our lock from us.
-                spins += 1;
                 if spins > STARVATION_SPINS {
                     return self.starve().lock();
                 }
+                spins += 1;
             }
         }
 
@@ -478,6 +478,7 @@ impl<'a, T: ?Sized, R> Starvation<'a, T, R> {
         // Try to lock the mutex.
         if self.lock.lock.fetch_or(LOCKED, Ordering::Acquire) & LOCKED == 0 {
             // We have successfully locked the mutex.
+            // By dropping `self` here, we decrement the starvation count.
             Ok(FairMutexGuard {
                 lock: &self.lock.lock,
                 data: self.lock.data.get(),
