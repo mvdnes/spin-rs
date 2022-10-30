@@ -23,7 +23,8 @@ pub struct Spin;
 impl RelaxStrategy for Spin {
     #[inline(always)]
     fn relax() {
-        core::hint::spin_loop();
+        #[allow(deprecated)]
+        core::sync::atomic::spin_loop_hint();
     }
 }
 
