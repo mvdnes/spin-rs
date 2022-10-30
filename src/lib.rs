@@ -54,6 +54,9 @@
 //! - `lock_api` enables support for [`lock_api`](https://crates.io/crates/lock_api)
 //!
 //! - `ticket_mutex` uses a ticket lock for the implementation of `Mutex`
+//! 
+//! - `fair_mutex` enables a fairer implementation of `Mutex` that uses eventual fairness to avoid
+//!   starvation
 //!
 //! - `std` enables support for thread yielding instead of spinning
 
@@ -191,4 +194,28 @@ pub mod lock_api {
     #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
     pub type RwLockUpgradableReadGuard<'a, T> =
         lock_api_crate::RwLockUpgradableReadGuard<'a, crate::RwLock<()>, T>;
+}
+
+/// In the event of an invalid operation, it's best to abort the current process.
+#[cfg(feature = "fair_mutex")]
+fn abort() -> !{
+    #[cfg(not(feature = "std"))]
+    {
+        // Panicking while panicking is defined by Rust to result in an abort.
+        struct Panic;
+
+        impl Drop for Panic {
+            fn drop(&mut self) {
+                panic!("aborting due to invalid operation");
+            }
+        }
+
+        let _panic = Panic;
+        panic!("aborting due to invalid operation");
+    }
+
+    #[cfg(feature = "std")]
+    {
+        std::process::abort();
+    }
 }
