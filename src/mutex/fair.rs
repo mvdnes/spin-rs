@@ -308,7 +308,7 @@ impl<T: ?Sized, R> FairMutex<T, R> {
     /// ```
     pub fn starve(&self) -> Starvation<'_, T, R> {
         // Add a new starver to the state.
-        if self.lock.fetch_add(STARVED, Ordering::Relaxed) > (isize::MAX - 1) as usize {
+        if self.lock.fetch_add(STARVED, Ordering::Relaxed) > (core::isize::MAX - 1) as usize {
             // In the event of a potential lock overflow, abort.
             crate::abort();
         }

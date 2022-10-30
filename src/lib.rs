@@ -197,6 +197,7 @@ pub mod lock_api {
 }
 
 /// In the event of an invalid operation, it's best to abort the current process.
+#[cfg(feature = "fair_mutex")]
 fn abort() -> !{
     #[cfg(not(feature = "std"))]
     {
