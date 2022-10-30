@@ -23,6 +23,8 @@ pub struct Spin;
 impl RelaxStrategy for Spin {
     #[inline(always)]
     fn relax() {
+        // Use the deprecated spin_loop_hint() to ensure that we don't get
+        // a higher MSRV than we need to.
         #[allow(deprecated)]
         core::sync::atomic::spin_loop_hint();
     }
