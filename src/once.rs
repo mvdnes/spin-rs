@@ -228,7 +228,7 @@ impl<T, R: RelaxStrategy> Once<T, R> {
                 Ordering::Acquire,
             ) {
                 Ok(_must_be_state_incomplete) => {
-                    // The compare-exchange suceeded, so we shall initialize it.
+                    // The compare-exchange succeeded, so we shall initialize it.
 
                     // We use a guard (Finish) to catch panics caused by builder
                     let finish = Finish { status: &self.status };
