@@ -617,7 +617,7 @@ mod tests {
         let a = mutex.try_lock();
         assert_eq!(a.as_ref().map(|r| **r), Some(42));
 
-        // Additional lock failes
+        // Additional lock fails
         let b = mutex.try_lock();
         assert!(b.is_none());
 

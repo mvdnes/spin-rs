@@ -19,7 +19,7 @@ use crate::{
 
 /// A spin-based [ticket lock](https://en.wikipedia.org/wiki/Ticket_lock) providing mutually exclusive access to data.
 ///
-/// A ticket lock is analagous to a queue management system for lock requests. When a thread tries to take a lock, it
+/// A ticket lock is analogous to a queue management system for lock requests. When a thread tries to take a lock, it
 /// is assigned a 'ticket'. It then spins until its ticket becomes next in line. When the lock guard is released, the
 /// next ticket will be processed.
 ///
@@ -443,7 +443,7 @@ mod tests {
         let a = mutex.try_lock();
         assert_eq!(a.as_ref().map(|r| **r), Some(42));
 
-        // Additional lock failes
+        // Additional lock fails
         let b = mutex.try_lock();
         assert!(b.is_none());
 
