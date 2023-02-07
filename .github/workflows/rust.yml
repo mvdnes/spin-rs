@@ -18,7 +18,7 @@ jobs:
         rust: [stable, beta, nightly]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Install Rust
       run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
     - name: Run Tests
@@ -39,7 +39,7 @@ jobs:
       matrix:
         version: [1.38.0]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Install Rust
       run: rustup update ${{ matrix.version }} && rustup default ${{ matrix.version }}
     - run: cargo build --all --all-features --all-targets
@@ -47,7 +47,7 @@ jobs:
   miri:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Install Rust
       run: rustup toolchain install nightly --component miri && rustup default nightly
     - run: cargo miri test
