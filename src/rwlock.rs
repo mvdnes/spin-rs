@@ -6,6 +6,7 @@ use core::{
     marker::PhantomData,
     fmt,
     mem,
+    mem::ManuallyDrop,
 };
 use crate::{
     atomic::{AtomicUsize, Ordering},
@@ -82,7 +83,7 @@ const WRITER: usize = 1;
 /// potentially releasing the lock.
 pub struct RwLockReadGuard<'a, T: 'a + ?Sized> {
     lock: &'a AtomicUsize,
-    data: &'a T,
+    data: *const T,
 }
 
 /// A guard that provides mutable data access.
@@ -91,7 +92,7 @@ pub struct RwLockReadGuard<'a, T: 'a + ?Sized> {
 pub struct RwLockWriteGuard<'a, T: 'a + ?Sized, R = Spin> {
     phantom: PhantomData<R>,
     inner: &'a RwLock<T, R>,
-    data: &'a mut T,
+    data: *mut T,
 }
 
 /// A guard that provides immutable data access but can be upgraded to [`RwLockWriteGuard`].
@@ -104,7 +105,7 @@ pub struct RwLockWriteGuard<'a, T: 'a + ?Sized, R = Spin> {
 pub struct RwLockUpgradableGuard<'a, T: 'a + ?Sized, R = Spin> {
     phantom: PhantomData<R>,
     inner: &'a RwLock<T, R>,
-    data: &'a T,
+    data: *const T,
 }
 
 // Same unsafe impls as `std::sync::RwLock`
@@ -472,8 +473,9 @@ impl<'rwlock, T: ?Sized> RwLockReadGuard<'rwlock, T> {
     /// ```
     #[inline]
     pub fn leak(this: Self) -> &'rwlock T {
-        let Self { data, .. } = this;
-        data
+        let this = ManuallyDrop::new(this);
+        // Safety: We know statically that only we are referencing data
+        unsafe { &*this.data }
     }
 }
 
@@ -598,8 +600,9 @@ impl<'rwlock, T: ?Sized, R> RwLockUpgradableGuard<'rwlock, T, R> {
     /// ```
     #[inline]
     pub fn leak(this: Self) -> &'rwlock T {
-        let Self { data, .. } = this;
-        data
+        let this = ManuallyDrop::new(this);
+        // Safety: We know statically that only we are referencing data
+        unsafe { &*this.data }
     }
 }
 
@@ -688,9 +691,9 @@ impl<'rwlock, T: ?Sized, R> RwLockWriteGuard<'rwlock, T, R> {
     /// ```
     #[inline]
     pub fn leak(this: Self) -> &'rwlock mut T {
-        let data = this.data as *mut _; // Keep it in pointer form temporarily to avoid double-aliasing
-        core::mem::forget(this);
-        unsafe { &mut *data }
+        let mut this = ManuallyDrop::new(this);
+        // Safety: We know statically that only we are referencing data
+        unsafe { &mut *this.data }
     }
 }
 
@@ -710,7 +713,8 @@ impl<'rwlock, T: ?Sized> Deref for RwLockReadGuard<'rwlock, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        self.data
+        // Safety: We know statically that only we are referencing data
+        unsafe { &*self.data }
     }
 }
 
@@ -718,7 +722,8 @@ impl<'rwlock, T: ?Sized, R> Deref for RwLockUpgradableGuard<'rwlock, T, R> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        self.data
+        // Safety: We know statically that only we are referencing data
+        unsafe { &*self.data }
     }
 }
 
@@ -726,13 +731,15 @@ impl<'rwlock, T: ?Sized, R> Deref for RwLockWriteGuard<'rwlock, T, R> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        self.data
+        // Safety: We know statically that only we are referencing data
+        unsafe { &*self.data }
     }
 }
 
 impl<'rwlock, T: ?Sized, R> DerefMut for RwLockWriteGuard<'rwlock, T, R> {
     fn deref_mut(&mut self) -> &mut T {
-        self.data
+        // Safety: We know statically that only we are referencing data
+        unsafe { &mut *self.data }
     }
 }
 
@@ -965,7 +972,7 @@ mod tests {
         let arc2 = arc.clone();
         let (tx, rx) = channel();
 
-        thread::spawn(move || {
+        let t = thread::spawn(move || {
             let mut lock = arc2.write();
             for _ in 0..10 {
                 let tmp = *lock;
@@ -995,6 +1002,8 @@ mod tests {
         rx.recv().unwrap();
         let lock = arc.read();
         assert_eq!(*lock, 10);
+
+        assert!(t.join().is_ok());
     }
 
     #[test]

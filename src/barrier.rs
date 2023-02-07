@@ -192,12 +192,13 @@ mod tests {
     fn use_barrier(n: usize, barrier: Arc<Barrier>) {
         let (tx, rx) = channel();
 
+        let mut ts = Vec::new();
         for _ in 0..n - 1 {
             let c = barrier.clone();
             let tx = tx.clone();
-            thread::spawn(move|| {
+            ts.push(thread::spawn(move|| {
                 tx.send(c.wait().is_leader()).unwrap();
-            });
+            }));
         }
 
         // At this point, all spawned threads should be blocked,
@@ -217,6 +218,10 @@ mod tests {
             }
         }
         assert!(leader_found);
+
+        for t in ts {
+            t.join().unwrap();
+        }
     }
 
     #[test]

@@ -540,9 +540,10 @@ mod tests {
         static mut RUN: bool = false;
 
         let (tx, rx) = channel();
+        let mut ts = Vec::new();
         for _ in 0..10 {
             let tx = tx.clone();
-            thread::spawn(move|| {
+            ts.push(thread::spawn(move|| {
                 for _ in 0..4 { thread::yield_now() }
                 unsafe {
                     O.call_once(|| {
@@ -552,7 +553,7 @@ mod tests {
                     assert!(RUN);
                 }
                 tx.send(()).unwrap();
-            });
+            }));
         }
 
         unsafe {
@@ -565,6 +566,10 @@ mod tests {
 
         for _ in 0..10 {
             rx.recv().unwrap();
+        }
+
+        for t in ts {
+            t.join().unwrap();
         }
     }
 
@@ -582,10 +587,15 @@ mod tests {
         static INIT: Once<usize> = Once::new();
 
         assert!(INIT.get().is_none());
-        thread::spawn(move|| {
-            INIT.call_once(|| loop { });
+        let t = thread::spawn(move|| {
+            INIT.call_once(|| {
+                thread::sleep(std::time::Duration::from_secs(3));
+                42
+            });
         });
         assert!(INIT.get().is_none());
+
+        t.join().unwrap();
     }
 
 
@@ -603,7 +613,7 @@ mod tests {
     fn wait() {
         static INIT: Once<usize> = Once::new();
 
-        std::thread::spawn(|| {
+        let t = std::thread::spawn(|| {
             assert_eq!(*INIT.wait(), 3);
             assert!(INIT.is_completed());
         });
@@ -612,6 +622,8 @@ mod tests {
 
         assert!(INIT.poll().is_none());
         INIT.call_once(|| 3);
+
+        t.join().unwrap();
     }
 
     #[test]
@@ -708,7 +720,7 @@ mod tests {
                 hs.push(h);
             }
             for h in hs {
-                let _ = h.join();
+                h.join().unwrap();
             }
             assert_eq!(1, share.load(Ordering::SeqCst));
         }
