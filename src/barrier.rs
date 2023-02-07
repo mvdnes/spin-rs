@@ -115,8 +115,7 @@ impl<R: RelaxStrategy> Barrier<R> {
             // not the leader
             let local_gen = lock.generation_id;
 
-            while local_gen == lock.generation_id &&
-                lock.count < self.num_threads {
+            while local_gen == lock.generation_id && lock.count < self.num_threads {
                 drop(lock);
                 R::relax();
                 lock = self.lock.lock();
@@ -176,7 +175,9 @@ impl BarrierWaitResult {
     /// let barrier_wait_result = barrier.wait();
     /// println!("{:?}", barrier_wait_result.is_leader());
     /// ```
-    pub fn is_leader(&self) -> bool { self.0 }
+    pub fn is_leader(&self) -> bool {
+        self.0
+    }
 }
 
 #[cfg(test)]
@@ -192,12 +193,13 @@ mod tests {
     fn use_barrier(n: usize, barrier: Arc<Barrier>) {
         let (tx, rx) = channel();
 
+        let mut ts = Vec::new();
         for _ in 0..n - 1 {
             let c = barrier.clone();
             let tx = tx.clone();
-            thread::spawn(move|| {
+            ts.push(thread::spawn(move || {
                 tx.send(c.wait().is_leader()).unwrap();
-            });
+            }));
         }
 
         // At this point, all spawned threads should be blocked,
@@ -217,6 +219,10 @@ mod tests {
             }
         }
         assert!(leader_found);
+
+        for t in ts {
+            t.join().unwrap();
+        }
     }
 
     #[test]

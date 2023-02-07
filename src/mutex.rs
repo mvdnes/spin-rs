@@ -34,11 +34,11 @@ pub mod fair;
 #[cfg_attr(docsrs, doc(cfg(feature = "fair_mutex")))]
 pub use self::fair::{FairMutex, FairMutexGuard, Starvation};
 
+use crate::{RelaxStrategy, Spin};
 use core::{
     fmt,
     ops::{Deref, DerefMut},
 };
-use crate::{RelaxStrategy, Spin};
 
 #[cfg(all(not(feature = "spin_mutex"), not(feature = "use_ticket_mutex")))]
 compile_error!("The `mutex` feature flag was used (perhaps through another feature?) without either `spin_mutex` or `use_ticket_mutex`. One of these is required.");
@@ -85,9 +85,11 @@ type InnerMutexGuard<'a, T> = self::ticket::TicketMutexGuard<'a, T>;
 /// // We use a barrier to ensure the readout happens after all writing
 /// let barrier = Arc::new(Barrier::new(thread_count + 1));
 ///
+/// # let mut ts = Vec::new();
 /// for _ in (0..thread_count) {
 ///     let my_barrier = barrier.clone();
 ///     let my_lock = spin_mutex.clone();
+/// # let t =
 ///     std::thread::spawn(move || {
 ///         let mut guard = my_lock.lock();
 ///         *guard += 1;
@@ -96,12 +98,17 @@ type InnerMutexGuard<'a, T> = self::ticket::TicketMutexGuard<'a, T>;
 ///         drop(guard);
 ///         my_barrier.wait();
 ///     });
+/// # ts.push(t);
 /// }
 ///
 /// barrier.wait();
 ///
 /// let answer = { *spin_mutex.lock() };
 /// assert_eq!(answer, thread_count);
+///
+/// # for t in ts {
+/// #     t.join().unwrap();
+/// # }
 /// ```
 pub struct Mutex<T: ?Sized, R = Spin> {
     inner: InnerMutex<T, R>,
@@ -139,7 +146,9 @@ impl<T, R> Mutex<T, R> {
     /// ```
     #[inline(always)]
     pub const fn new(value: T) -> Self {
-        Self { inner: InnerMutex::new(value) }
+        Self {
+            inner: InnerMutex::new(value),
+        }
     }
 
     /// Consumes this [`Mutex`] and unwraps the underlying data.

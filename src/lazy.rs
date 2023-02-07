@@ -3,8 +3,8 @@
 //! Implementation adapted from the `SyncLazy` type of the standard library. See:
 //! <https://doc.rust-lang.org/std/lazy/struct.SyncLazy.html>
 
-use core::{cell::Cell, fmt, ops::Deref};
 use crate::{once::Once, RelaxStrategy, Spin};
+use core::{cell::Cell, fmt, ops::Deref};
 
 /// A value which is initialized on the first access.
 ///
@@ -45,7 +45,10 @@ pub struct Lazy<T, F = fn() -> T, R = Spin> {
 
 impl<T: fmt::Debug, F, R> fmt::Debug for Lazy<T, F, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Lazy").field("cell", &self.cell).field("init", &"..").finish()
+        f.debug_struct("Lazy")
+            .field("cell", &self.cell)
+            .field("init", &"..")
+            .finish()
     }
 }
 
@@ -61,7 +64,10 @@ impl<T, F, R> Lazy<T, F, R> {
     /// Creates a new lazy value with the given initializing
     /// function.
     pub const fn new(f: F) -> Self {
-        Self { cell: Once::new(), init: Cell::new(Some(f)) }
+        Self {
+            cell: Once::new(),
+            init: Cell::new(Some(f)),
+        }
     }
     /// Retrieves a mutable pointer to the inner data.
     ///

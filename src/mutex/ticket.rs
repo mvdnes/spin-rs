@@ -5,17 +5,16 @@
 //! latency is infinitely better. Waiting threads simply need to wait for all threads that come before them in the
 //! queue to finish.
 
+use crate::{
+    atomic::{AtomicUsize, Ordering},
+    RelaxStrategy, Spin,
+};
 use core::{
     cell::UnsafeCell,
     fmt,
-    ops::{Deref, DerefMut},
     marker::PhantomData,
+    ops::{Deref, DerefMut},
 };
-use crate::{
-    atomic::{AtomicUsize, Ordering},
-    RelaxStrategy, Spin
-};
-
 
 /// A spin-based [ticket lock](https://en.wikipedia.org/wiki/Ticket_lock) providing mutually exclusive access to data.
 ///

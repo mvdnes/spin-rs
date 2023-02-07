@@ -54,7 +54,7 @@
 //! - `lock_api` enables support for [`lock_api`](https://crates.io/crates/lock_api)
 //!
 //! - `ticket_mutex` uses a ticket lock for the implementation of `Mutex`
-//! 
+//!
 //! - `fair_mutex` enables a fairer implementation of `Mutex` that uses eventual fairness to avoid
 //!   starvation
 //!
@@ -66,10 +66,10 @@ extern crate core;
 #[cfg(feature = "portable_atomic")]
 extern crate portable_atomic;
 
-#[cfg(feature = "portable_atomic")]
-use portable_atomic as atomic;
 #[cfg(not(feature = "portable_atomic"))]
 use core::sync::atomic;
+#[cfg(feature = "portable_atomic")]
+use portable_atomic as atomic;
 
 #[cfg(feature = "barrier")]
 #[cfg_attr(docsrs, doc(cfg(feature = "barrier")))]
@@ -83,21 +83,21 @@ pub mod mutex;
 #[cfg(feature = "once")]
 #[cfg_attr(docsrs, doc(cfg(feature = "once")))]
 pub mod once;
+pub mod relax;
 #[cfg(feature = "rwlock")]
 #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
 pub mod rwlock;
-pub mod relax;
 
 #[cfg(feature = "mutex")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mutex")))]
 pub use mutex::MutexGuard;
-#[cfg(feature = "rwlock")]
-#[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
-pub use rwlock::RwLockReadGuard;
-pub use relax::{Spin, RelaxStrategy};
 #[cfg(feature = "std")]
 #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub use relax::Yield;
+pub use relax::{RelaxStrategy, Spin};
+#[cfg(feature = "rwlock")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
+pub use rwlock::RwLockReadGuard;
 
 // Avoid confusing inference errors by aliasing away the relax strategy parameter. Users that need to use a different
 // relax strategy can do so by accessing the types through their fully-qualified path. This is a little bit horrible
@@ -198,7 +198,7 @@ pub mod lock_api {
 
 /// In the event of an invalid operation, it's best to abort the current process.
 #[cfg(feature = "fair_mutex")]
-fn abort() -> !{
+fn abort() -> ! {
     #[cfg(not(feature = "std"))]
     {
         // Panicking while panicking is defined by Rust to result in an abort.

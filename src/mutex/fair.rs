@@ -1,19 +1,19 @@
 //! A spinning mutex with a fairer unlock algorithm.
-//! 
+//!
 //! This mutex is similar to the `SpinMutex` in that it uses spinning to avoid
 //! context switches. However, it uses a fairer unlock algorithm that avoids
-//! starvation of threads that are waiting for the lock. 
+//! starvation of threads that are waiting for the lock.
 
+use crate::{
+    atomic::{AtomicUsize, Ordering},
+    RelaxStrategy, Spin,
+};
 use core::{
     cell::UnsafeCell,
     fmt,
-    ops::{Deref, DerefMut},
     marker::PhantomData,
     mem::ManuallyDrop,
-};
-use crate::{
-    atomic::{AtomicUsize, Ordering},
-    RelaxStrategy, Spin
+    ops::{Deref, DerefMut},
 };
 
 // The lowest bit of `lock` is used to indicate whether the mutex is locked or not. The rest of the bits are used to
@@ -87,10 +87,10 @@ pub struct FairMutexGuard<'a, T: ?Sized + 'a> {
 }
 
 /// A handle that indicates that we have been trying to acquire the lock for a while.
-/// 
+///
 /// This handle is used to prevent starvation.
 pub struct Starvation<'a, T: ?Sized + 'a, R> {
-    lock: &'a FairMutex<T, R>
+    lock: &'a FairMutex<T, R>,
 }
 
 /// Indicates whether a lock was rejected due to the lock being held by another thread or due to starvation.
@@ -195,7 +195,11 @@ impl<T: ?Sized, R: RelaxStrategy> FairMutex<T, R> {
         // Can fail to lock even if the spinlock is not locked. May be more efficient than `try_lock`
         // when called in a loop.
         let mut spins = 0;
-        while self.lock.compare_exchange_weak(0, 1, Ordering::Acquire, Ordering::Relaxed).is_err() {
+        while self
+            .lock
+            .compare_exchange_weak(0, 1, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
             // Wait until the lock looks unlocked before retrying
             while self.is_locked() {
                 R::relax();
@@ -263,7 +267,11 @@ impl<T: ?Sized, R> FairMutex<T, R> {
     /// rejected due to a starver or not.
     #[inline(always)]
     pub fn try_lock_starver(&self) -> Result<FairMutexGuard<T>, LockRejectReason> {
-        match self.lock.compare_exchange(0, LOCKED, Ordering::Acquire, Ordering::Relaxed).unwrap_or_else(|x| x) {
+        match self
+            .lock
+            .compare_exchange(0, LOCKED, Ordering::Acquire, Ordering::Relaxed)
+            .unwrap_or_else(|x| x)
+        {
             0 => Ok(FairMutexGuard {
                 lock: &self.lock,
                 data: unsafe { &mut *self.data.get() },
@@ -275,35 +283,35 @@ impl<T: ?Sized, R> FairMutex<T, R> {
 
     /// Indicates that the current user has been waiting for the lock for a while
     /// and that the lock should yield to this thread over a newly arriving thread.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// let lock = spin::mutex::FairMutex::<_>::new(42);
-    /// 
+    ///
     /// // Lock the mutex to simulate it being used by another user.
     /// let guard1 = lock.lock();
-    /// 
+    ///
     /// // Try to lock the mutex.
     /// let guard2 = lock.try_lock();
     /// assert!(guard2.is_none());
-    /// 
+    ///
     /// // Wait for a while.
     /// wait_for_a_while();
-    /// 
+    ///
     /// // We are now starved, indicate as such.
     /// let starve = lock.starve();
-    /// 
+    ///
     /// // Once the lock is released, another user trying to lock it will
     /// // fail.
     /// drop(guard1);
     /// let guard3 = lock.try_lock();
     /// assert!(guard3.is_none());
-    /// 
+    ///
     /// // However, we will be able to lock it.
     /// let guard4 = starve.try_lock();
     /// assert!(guard4.is_ok());
-    /// 
+    ///
     /// # fn wait_for_a_while() {}
     /// ```
     pub fn starve(&self) -> Starvation<'_, T, R> {
@@ -340,7 +348,7 @@ impl<T: ?Sized, R> FairMutex<T, R> {
 impl<T: ?Sized + fmt::Debug, R> fmt::Debug for FairMutex<T, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         struct LockWrapper<'a, T: ?Sized + fmt::Debug>(Option<FairMutexGuard<'a, T>>);
-        
+
         impl<T: ?Sized + fmt::Debug> fmt::Debug for LockWrapper<'_, T> {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 match &self.0 {
@@ -350,7 +358,9 @@ impl<T: ?Sized + fmt::Debug, R> fmt::Debug for FairMutex<T, R> {
             }
         }
 
-        f.debug_struct("FairMutex").field("data", &LockWrapper(self.try_lock())).finish()
+        f.debug_struct("FairMutex")
+            .field("data", &LockWrapper(self.try_lock()))
+            .finish()
     }
 }
 
@@ -424,11 +434,21 @@ impl<'a, T: ?Sized> Drop for FairMutexGuard<'a, T> {
 
 impl<'a, T: ?Sized, R> Starvation<'a, T, R> {
     /// Attempts the lock the mutex if we are the only starving user.
-    /// 
+    ///
     /// This allows another user to lock the mutex if they are starving as well.
     pub fn try_lock_fair(self) -> Result<FairMutexGuard<'a, T>, Self> {
         // Try to lock the mutex.
-        if self.lock.lock.compare_exchange(STARVED, STARVED | LOCKED, Ordering::Acquire, Ordering::Relaxed).is_ok() {
+        if self
+            .lock
+            .lock
+            .compare_exchange(
+                STARVED,
+                STARVED | LOCKED,
+                Ordering::Acquire,
+                Ordering::Relaxed,
+            )
+            .is_ok()
+        {
             // We are the only starving user, lock the mutex.
             Ok(FairMutexGuard {
                 lock: &self.lock.lock,
@@ -441,37 +461,37 @@ impl<'a, T: ?Sized, R> Starvation<'a, T, R> {
     }
 
     /// Attempts to lock the mutex.
-    /// 
+    ///
     /// If the lock is currently held by another thread, this will return `None`.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// let lock = spin::mutex::FairMutex::<_>::new(42);
-    /// 
+    ///
     /// // Lock the mutex to simulate it being used by another user.
     /// let guard1 = lock.lock();
-    /// 
+    ///
     /// // Try to lock the mutex.
     /// let guard2 = lock.try_lock();
     /// assert!(guard2.is_none());
-    /// 
+    ///
     /// // Wait for a while.
     /// wait_for_a_while();
-    /// 
+    ///
     /// // We are now starved, indicate as such.
     /// let starve = lock.starve();
-    /// 
+    ///
     /// // Once the lock is released, another user trying to lock it will
     /// // fail.
     /// drop(guard1);
     /// let guard3 = lock.try_lock();
     /// assert!(guard3.is_none());
-    /// 
+    ///
     /// // However, we will be able to lock it.
     /// let guard4 = starve.try_lock();
     /// assert!(guard4.is_ok());
-    /// 
+    ///
     /// # fn wait_for_a_while() {}
     /// ```
     pub fn try_lock(self) -> Result<FairMutexGuard<'a, T>, Self> {
