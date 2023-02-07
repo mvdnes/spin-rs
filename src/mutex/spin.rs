@@ -3,16 +3,16 @@
 //! Waiting threads hammer an atomic variable until it becomes available. Best-case latency is low, but worst-case
 //! latency is theoretically infinite.
 
+use crate::{
+    atomic::{AtomicBool, Ordering},
+    RelaxStrategy, Spin,
+};
 use core::{
     cell::UnsafeCell,
     fmt,
-    ops::{Deref, DerefMut},
     marker::PhantomData,
     mem::ManuallyDrop,
-};
-use crate::{
-    atomic::{AtomicBool, Ordering},
-    RelaxStrategy, Spin
+    ops::{Deref, DerefMut},
 };
 
 /// A [spin lock](https://en.m.wikipedia.org/wiki/Spinlock) providing mutually exclusive access to data.
@@ -174,7 +174,11 @@ impl<T: ?Sized, R: RelaxStrategy> SpinMutex<T, R> {
     pub fn lock(&self) -> SpinMutexGuard<T> {
         // Can fail to lock even if the spinlock is not locked. May be more efficient than `try_lock`
         // when called in a loop.
-        while self.lock.compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed).is_err() {
+        while self
+            .lock
+            .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
             // Wait until the lock looks unlocked before retrying
             while self.is_locked() {
                 R::relax();
@@ -230,7 +234,11 @@ impl<T: ?Sized, R> SpinMutex<T, R> {
     pub fn try_lock(&self) -> Option<SpinMutexGuard<T>> {
         // The reason for using a strong compare_exchange is explained here:
         // https://github.com/Amanieu/parking_lot/pull/207#issuecomment-575869107
-        if self.lock.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).is_ok() {
+        if self
+            .lock
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_ok()
+        {
             Some(SpinMutexGuard {
                 lock: &self.lock,
                 data: unsafe { &mut *self.data.get() },

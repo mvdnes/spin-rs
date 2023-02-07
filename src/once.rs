@@ -1,16 +1,11 @@
-    //! Synchronization primitives for one-time evaluation.
 
-use core::{
-    cell::UnsafeCell,
-    mem::MaybeUninit,
-    marker::PhantomData,
-    fmt,
-};
+//! Synchronization primitives for one-time evaluation.
+
 use crate::{
     atomic::{AtomicU8, Ordering},
-    RelaxStrategy, Spin
+    RelaxStrategy, Spin,
 };
-
+use core::{cell::UnsafeCell, fmt, marker::PhantomData, mem::MaybeUninit};
 
 /// A primitive that provides lazy one-time initialization.
 ///
@@ -38,16 +33,18 @@ pub struct Once<T = (), R = Spin> {
 }
 
 impl<T, R> Default for Once<T, R> {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T: fmt::Debug, R> fmt::Debug for Once<T, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.get() {
             Some(s) => write!(f, "Once {{ data: ")
-				.and_then(|()| s.fmt(f))
-				.and_then(|()| write!(f, "}}")),
-            None => write!(f, "Once {{ <uninitialized> }}")
+                .and_then(|()| s.fmt(f))
+                .and_then(|()| write!(f, "}}")),
+            None => write!(f, "Once {{ <uninitialized> }}"),
         }
     }
 }
@@ -106,12 +103,20 @@ mod status {
             self.0.store(status as u8, ordering);
         }
         #[inline(always)]
-        pub fn compare_exchange(&self, old: Status, new: Status, success: Ordering, failure: Ordering) -> Result<Status, Status> {
-            match self.0.compare_exchange(old as u8, new as u8, success, failure) {
+        pub fn compare_exchange(
+            &self,
+            old: Status,
+            new: Status,
+            success: Ordering,
+            failure: Ordering,
+        ) -> Result<Status, Status> {
+            match self
+                .0
+                .compare_exchange(old as u8, new as u8, success, failure)
+            {
                 // SAFETY: A compare exchange will always return a value that was later stored into
                 // the atomic u8, but due to the invariant that it must be a valid Status, we know
                 // that both Ok(_) and Err(_) will be safely transmutable.
-
                 Ok(ok) => Ok(unsafe { Status::new_unchecked(ok) }),
                 Err(err) => Err(unsafe { Status::new_unchecked(err) }),
             }
@@ -124,7 +129,7 @@ mod status {
         }
     }
 }
-use self::status::{Status, AtomicStatus};
+use self::status::{AtomicStatus, Status};
 
 use core::hint::unreachable_unchecked as unreachable;
 
@@ -231,7 +236,9 @@ impl<T, R: RelaxStrategy> Once<T, R> {
                     // The compare-exchange succeeded, so we shall initialize it.
 
                     // We use a guard (Finish) to catch panics caused by builder
-                    let finish = Finish { status: &self.status };
+                    let finish = Finish {
+                        status: &self.status,
+                    };
                     let val = match f() {
                         Ok(val) => val,
                         Err(err) => {
@@ -283,24 +290,22 @@ impl<T, R: RelaxStrategy> Once<T, R> {
             // initialized it ourselves, in which case no additional synchronization is needed.
             Status::Complete => unsafe { self.force_get() },
             Status::Panicked => panic!("Once panicked"),
-            Status::Running => self
-                .poll()
-                .unwrap_or_else(|| {
-                    if cfg!(debug_assertions) {
-                        unreachable!("Encountered INCOMPLETE when polling Once")
-                    } else {
-                        // SAFETY: This poll is guaranteed never to fail because the API of poll
-                        // promises spinning if initialization is in progress. We've already
-                        // checked that initialisation is in progress, and initialisation is
-                        // monotonic: once done, it cannot be undone. We also fetched the status
-                        // with Acquire semantics, thereby guaranteeing that the later-executed
-                        // poll will also agree with us that initialization is in progress. Ergo,
-                        // this poll cannot fail.
-                        unsafe {
-                            unreachable();
-                        }
+            Status::Running => self.poll().unwrap_or_else(|| {
+                if cfg!(debug_assertions) {
+                    unreachable!("Encountered INCOMPLETE when polling Once")
+                } else {
+                    // SAFETY: This poll is guaranteed never to fail because the API of poll
+                    // promises spinning if initialization is in progress. We've already
+                    // checked that initialisation is in progress, and initialisation is
+                    // monotonic: once done, it cannot be undone. We also fetched the status
+                    // with Acquire semantics, thereby guaranteeing that the later-executed
+                    // poll will also agree with us that initialization is in progress. Ergo,
+                    // this poll cannot fail.
+                    unsafe {
+                        unreachable();
                     }
-                }),
+                }
+            }),
 
             // SAFETY: The only invariant possible in addition to the aforementioned ones at the
             // moment, is INCOMPLETE. However, the only way for this match statement to be
@@ -364,7 +369,7 @@ impl<T, R> Once<T, R> {
     };
 
     /// Creates a new [`Once`].
-    pub const fn new() -> Self{
+    pub const fn new() -> Self {
         Self::INIT
     }
 
@@ -543,8 +548,10 @@ mod tests {
         let mut ts = Vec::new();
         for _ in 0..10 {
             let tx = tx.clone();
-            ts.push(thread::spawn(move|| {
-                for _ in 0..4 { thread::yield_now() }
+            ts.push(thread::spawn(move || {
+                for _ in 0..4 {
+                    thread::yield_now()
+                }
                 unsafe {
                     O.call_once(|| {
                         assert!(!RUN);
@@ -587,7 +594,7 @@ mod tests {
         static INIT: Once<usize> = Once::new();
 
         assert!(INIT.get().is_none());
-        let t = thread::spawn(move|| {
+        let t = thread::spawn(move || {
             INIT.call_once(|| {
                 thread::sleep(std::time::Duration::from_secs(3));
                 42
@@ -598,7 +605,6 @@ mod tests {
         t.join().unwrap();
     }
 
-
     #[test]
     fn poll() {
         static INIT: Once<usize> = Once::new();
@@ -607,7 +613,6 @@ mod tests {
         INIT.call_once(|| 3);
         assert_eq!(INIT.poll().map(|r| *r), Some(3));
     }
-
 
     #[test]
     fn wait() {
@@ -618,7 +623,9 @@ mod tests {
             assert!(INIT.is_completed());
         });
 
-        for _ in 0..4 { thread::yield_now() }
+        for _ in 0..4 {
+            thread::yield_now()
+        }
 
         assert!(INIT.poll().is_none());
         INIT.call_once(|| 3);
@@ -628,7 +635,7 @@ mod tests {
 
     #[test]
     fn panic() {
-        use ::std::panic;
+        use std::panic;
 
         static INIT: Once = Once::new();
 
@@ -681,9 +688,7 @@ mod tests {
             once.call_once(|| DropTest {});
         }
 
-        assert!(unsafe {
-            CALLED
-        });
+        assert!(unsafe { CALLED });
         // Now test that we skip drops for the uninitialized case.
         unsafe {
             CALLED = false;
@@ -692,16 +697,14 @@ mod tests {
         let once = Once::<DropTest>::new();
         drop(once);
 
-        assert!(unsafe {
-            !CALLED
-        });
+        assert!(unsafe { !CALLED });
     }
 
     #[test]
     fn call_once_test() {
         for _ in 0..20 {
-            use std::sync::Arc;
             use std::sync::atomic::AtomicUsize;
+            use std::sync::Arc;
             use std::time::Duration;
             let share = Arc::new(AtomicUsize::new(0));
             let once = Arc::new(Once::<_, Spin>::new());
