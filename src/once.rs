@@ -454,6 +454,23 @@ impl<T, R> Once<T, R> {
             _ => None,
         }
     }
+    
+    /// Returns a mutable reference to the inner value
+    ///
+    /// # Safety
+    ///
+    /// This is *extremely* unsafe if the `Once` has not already been initialized because a reference to uninitialized
+    /// memory will be returned, immediately triggering undefined behaviour (even if the reference goes unused).
+    /// However, this can be useful in some instances for exposing the `Once` to FFI or when the overhead of atomically
+    /// checking initialization is unacceptable and the `Once` has already been initialized.
+    pub unsafe fn get_mut_unchecked(&mut self) -> &mut T {
+        debug_assert_eq!(
+            self.status.load(Ordering::SeqCst),
+            Status::Complete,
+            "Attempted to access an unintialized Once.  If this was to run without debug checks, this would be undefined behavior.  This is a serious bug and you must fix it.",
+        );
+        self.force_get_mut()
+    }
 
     /// Returns a the inner value if the [`Once`] has been initialized.
     ///
@@ -464,6 +481,22 @@ impl<T, R> Once<T, R> {
             Status::Complete => Some(unsafe { self.force_into_inner() }),
             _ => None,
         }
+    }
+
+    /// Returns a the inner value if the [`Once`] has been initialized.  
+    /// # Safety
+    ///
+    /// This is *extremely* unsafe if the `Once` has not already been initialized because a reference to uninitialized
+    /// memory will be returned, immediately triggering undefined behaviour (even if the reference goes unused)
+    /// This can be useful, if `Once` has already been initialized, and you want to bypass an
+    /// option check.
+    pub unsafe fn into_inner_unchecked(self) -> T {
+        debug_assert_eq!(
+            self.status.load(Ordering::SeqCst),
+            Status::Complete,
+            "Attempted to access an unintialized Once.  If this was to run without debug checks, this would be undefined behavior.  This is a serious bug and you must fix it.",
+        );
+        self.force_into_inner() 
     }
 
     /// Checks whether the value has been initialized.
