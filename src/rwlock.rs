@@ -111,6 +111,15 @@ pub struct RwLockUpgradableGuard<'a, T: 'a + ?Sized, R = Spin> {
 unsafe impl<T: ?Sized + Send, R> Send for RwLock<T, R> {}
 unsafe impl<T: ?Sized + Send + Sync, R> Sync for RwLock<T, R> {}
 
+unsafe impl<T: ?Sized + Send + Sync, R> Send for RwLockWriteGuard<'_, T, R> {}
+unsafe impl<T: ?Sized + Send + Sync, R> Sync for RwLockWriteGuard<'_, T, R> {}
+
+unsafe impl<T: ?Sized + Sync> Send for RwLockReadGuard<'_, T> {}
+unsafe impl<T: ?Sized + Sync> Sync for RwLockReadGuard<'_, T> {}
+
+unsafe impl<T: ?Sized + Send + Sync, R> Send for RwLockUpgradableGuard<'_, T, R> {}
+unsafe impl<T: ?Sized + Send + Sync, R> Sync for RwLockUpgradableGuard<'_, T, R> {}
+
 impl<T, R> RwLock<T, R> {
     /// Creates a new spinlock wrapping the supplied data.
     ///
