@@ -1,4 +1,3 @@
-
 //! Synchronization primitives for one-time evaluation.
 
 use crate::{
@@ -454,7 +453,7 @@ impl<T, R> Once<T, R> {
             _ => None,
         }
     }
-    
+
     /// Returns a mutable reference to the inner value
     ///
     /// # Safety
@@ -496,7 +495,7 @@ impl<T, R> Once<T, R> {
             Status::Complete,
             "Attempted to access an unintialized Once.  If this was to run without debug checks, this would be undefined behavior.  This is a serious bug and you must fix it.",
         );
-        self.force_into_inner() 
+        self.force_into_inner()
     }
 
     /// Checks whether the value has been initialized.
