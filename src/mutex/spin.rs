@@ -87,6 +87,9 @@ pub struct SpinMutexGuard<'a, T: ?Sized + 'a> {
 unsafe impl<T: ?Sized + Send, R> Sync for SpinMutex<T, R> {}
 unsafe impl<T: ?Sized + Send, R> Send for SpinMutex<T, R> {}
 
+unsafe impl<T: ?Sized + Sync> Sync for SpinMutexGuard<'_, T> {}
+unsafe impl<T: ?Sized + Send> Send for SpinMutexGuard<'_, T> {}
+
 impl<T, R> SpinMutex<T, R> {
     /// Creates a new [`SpinMutex`] wrapping the supplied data.
     ///
