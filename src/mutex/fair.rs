@@ -107,6 +107,9 @@ pub enum LockRejectReason {
 unsafe impl<T: ?Sized + Send, R> Sync for FairMutex<T, R> {}
 unsafe impl<T: ?Sized + Send, R> Send for FairMutex<T, R> {}
 
+unsafe impl<T: ?Sized + Sync> Sync for FairMutexGuard<'_, T> {}
+unsafe impl<T: ?Sized + Send> Send for FairMutexGuard<'_, T> {}
+
 impl<T, R> FairMutex<T, R> {
     /// Creates a new [`FairMutex`] wrapping the supplied data.
     ///
