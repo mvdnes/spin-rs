@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+# [0.9.7] - 2023-03-27
+
+### Fixed
+
+- Relaxed accidentally restricted `Send`/`Sync` bounds for `Mutex` guards
+
 # [0.9.6] - 2023-03-13
 
 ### Fixed
