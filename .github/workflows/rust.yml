@@ -34,7 +34,7 @@ jobs:
     - run: rustup target add thumbv7m-none-eabi
     - name: Ensure we don't depend on libstd
       run: cargo hack build --target thumbv7m-none-eabi --no-dev-deps --no-default-features
-  
+
   msrv:
     runs-on: ubuntu-latest
     strategy:
@@ -44,7 +44,7 @@ jobs:
     - uses: actions/checkout@v3
     - name: Install Rust
       run: rustup update ${{ matrix.version }} && rustup default ${{ matrix.version }}
-    - run: cargo build --all --all-features --all-targets
+    - run: cargo check --all --all-features
 
   miri:
     runs-on: ubuntu-latest

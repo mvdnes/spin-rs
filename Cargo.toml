@@ -1,6 +1,6 @@
 [package]
 name = "spin"
-version = "0.9.6"
+version = "0.9.7"
 authors = [
     "Mathijs van de Nes <git@mathijs.vd-nes.nl>",
     "John Ericson <git@JohnEricson.me>",
@@ -65,3 +65,11 @@ portable_atomic = ["portable-atomic"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[dev-dependencies]
+criterion = "0.4"
+
+[[bench]]
+name = "mutex"
+harness = false
+required-features = ["ticket_mutex"]
