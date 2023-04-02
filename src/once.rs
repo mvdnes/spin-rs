@@ -130,8 +130,6 @@ mod status {
 }
 use self::status::{AtomicStatus, Status};
 
-use core::hint::unreachable_unchecked as unreachable;
-
 impl<T, R: RelaxStrategy> Once<T, R> {
     /// Performs an initialization routine once and only once. The given closure
     /// will be executed if this is the first time `call_once` has been called,
