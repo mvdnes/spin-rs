@@ -1,6 +1,6 @@
 [package]
 name = "spin"
-version = "0.9.7"
+version = "0.9.8"
 authors = [
     "Mathijs van de Nes <git@mathijs.vd-nes.nl>",
     "John Ericson <git@JohnEricson.me>",
