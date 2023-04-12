@@ -231,7 +231,18 @@ impl<T: ?Sized, R> SpinMutex<T, R> {
     pub fn try_lock(&self) -> Option<SpinMutexGuard<T>> {
         // The reason for using a strong compare_exchange is explained here:
         // https://github.com/Amanieu/parking_lot/pull/207#issuecomment-575869107
-        self.try_lock_internal(true)
+        if self
+            .lock
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_ok()
+        {
+            Some(SpinMutexGuard {
+                lock: &self.lock,
+                data: unsafe { &mut *self.data.get() },
+            })
+        } else {
+            None
+        }
     }
 
     /// Try to lock this [`SpinMutex`], returning a lock guard if succesful.
@@ -240,25 +251,10 @@ impl<T: ?Sized, R> SpinMutex<T, R> {
     /// which can result in more efficient code on some platforms.
     #[inline(always)]
     pub fn try_lock_weak(&self) -> Option<SpinMutexGuard<T>> {
-        self.try_lock_internal(false)
-    }
-
-    #[inline(always)]
-    fn try_lock_internal(&self, strong: bool) -> Option<SpinMutexGuard<T>> {
-        let f = if strong {
-            AtomicBool::compare_exchange
-        } else {
-            AtomicBool::compare_exchange_weak
-        };
-
-        if f(
-            &self.lock,
-            false,
-            true,
-            Ordering::Acquire,
-            Ordering::Relaxed,
-        )
-        .is_ok()
+        if self
+            .lock
+            .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_ok()
         {
             Some(SpinMutexGuard {
                 lock: &self.lock,
