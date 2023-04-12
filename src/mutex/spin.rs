@@ -179,7 +179,7 @@ impl<T: ?Sized, R: RelaxStrategy> SpinMutex<T, R> {
         // when called in a loop.
         loop {
             if let Some(guard) = self.try_lock_weak() {
-                return guard;
+                break guard;
             }
 
             while self.is_locked() {
