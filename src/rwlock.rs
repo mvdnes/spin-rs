@@ -409,6 +409,15 @@ impl<T: ?Sized, R> RwLock<T, R> {
         self.try_write_internal(true)
     }
 
+    /// Attempt to lock this rwlock with exclusive write access.
+    ///
+    /// Unlike [`RwLock::try_write`], this function is allowed to spuriously fail even when acquiring exclusive write access
+    /// would otherwise succeed, which can result in more efficient code on some platforms.
+    #[inline]
+    pub fn try_write_weak(&self) -> Option<RwLockWriteGuard<T, R>> {
+        self.try_write_internal(false)
+    }
+
     /// Tries to obtain an upgradeable lock guard.
     #[inline]
     pub fn try_upgradeable_read(&self) -> Option<RwLockUpgradableGuard<T, R>> {
@@ -564,6 +573,15 @@ impl<'rwlock, T: ?Sized, R> RwLockUpgradableGuard<'rwlock, T, R> {
     #[inline]
     pub fn try_upgrade(self) -> Result<RwLockWriteGuard<'rwlock, T, R>, Self> {
         self.try_upgrade_internal(true)
+    }
+
+    /// Tries to upgrade an upgradeable lock guard to a writable lock guard.
+    ///
+    /// Unlike [`RwLockUpgradableGuard::try_upgrade`], this function is allowed to spuriously fail even when upgrading
+    /// would otherwise succeed, which can result in more efficient code on some platforms.
+    #[inline]
+    pub fn try_upgrade_weak(self) -> Result<RwLockWriteGuard<'rwlock, T, R>, Self> {
+        self.try_upgrade_internal(false)
     }
 
     #[inline]

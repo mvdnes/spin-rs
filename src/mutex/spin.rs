@@ -177,20 +177,14 @@ impl<T: ?Sized, R: RelaxStrategy> SpinMutex<T, R> {
     pub fn lock(&self) -> SpinMutexGuard<T> {
         // Can fail to lock even if the spinlock is not locked. May be more efficient than `try_lock`
         // when called in a loop.
-        while self
-            .lock
-            .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
-            .is_err()
-        {
-            // Wait until the lock looks unlocked before retrying
+        loop {
+            if let Some(guard) = self.try_lock_weak() {
+                break guard;
+            }
+
             while self.is_locked() {
                 R::relax();
             }
-        }
-
-        SpinMutexGuard {
-            lock: &self.lock,
-            data: unsafe { &mut *self.data.get() },
         }
     }
 }
@@ -240,6 +234,26 @@ impl<T: ?Sized, R> SpinMutex<T, R> {
         if self
             .lock
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_ok()
+        {
+            Some(SpinMutexGuard {
+                lock: &self.lock,
+                data: unsafe { &mut *self.data.get() },
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Try to lock this [`SpinMutex`], returning a lock guard if succesful.
+    ///
+    /// Unlike [`SpinMutex::try_lock`], this function is allowed to spuriously fail even when the mutex is unlocked,
+    /// which can result in more efficient code on some platforms.
+    #[inline(always)]
+    pub fn try_lock_weak(&self) -> Option<SpinMutexGuard<T>> {
+        if self
+            .lock
+            .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
             .is_ok()
         {
             Some(SpinMutexGuard {
