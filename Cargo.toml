@@ -52,6 +52,11 @@ lock_api = ["lock_api_crate"]
 # Enables std-only features such as yield-relaxing.
 std = []
 
+# An alias of all features *except* `portable_atomic`. Used only for internal crate tests.
+# Do not use this feature, its removal is not considered a breaking change and its behaviour may change.
+# If you're working on `spin` and you're adding a feature, please add it to this list.
+_test_atomic = ["mutex", "spin_mutex", "ticket_mutex", "fair_mutex", "rwlock", "once", "lazy", "barrier", "lock_api", "std"]
+
 # Use the portable_atomic crate to support platforms without native atomic operations.
 # The `portable_atomic_unsafe_assume_single_core` cfg or `critical-section` feature
 # of `portable-atomic` crate must also be set by the final binary crate.

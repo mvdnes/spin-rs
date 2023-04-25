@@ -24,13 +24,9 @@ jobs:
     - name: Install Rust
       run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
     - name: Run Tests
-      run: cargo test --all-features --verbose
-      env:
-          RUSTFLAGS: --cfg portable_atomic_unsafe_assume_single_core
+      run: cargo test --features _test_atomic --verbose
     - name: Build crate
-      run: cargo build --all --all-features --all-targets
-      env:
-          RUSTFLAGS: --cfg portable_atomic_unsafe_assume_single_core
+      run: cargo build --all --features _test_atomic --all-targets
     - name: Catch missing feature flags
       if: startsWith(matrix.rust, 'nightly')
       run: cargo check -Z features=dev_dep
@@ -50,9 +46,7 @@ jobs:
     - name: Install Rust
       run: rustup update ${{ matrix.version }} && rustup default ${{ matrix.version }}
     - name: Check MSRV
-      run: cargo check --all --all-features
-      env:
-          RUSTFLAGS: --cfg portable_atomic_unsafe_assume_single_core
+      run: cargo check --all --features _test_atomic
 
   miri:
     runs-on: ubuntu-latest
