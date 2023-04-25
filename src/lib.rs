@@ -71,34 +71,79 @@ use core::sync::atomic;
 #[cfg(all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))]
 use portable_atomic as atomic;
 
-#[cfg(all(feature = "portable_atomic", not(portable_atomic_unsafe_assume_single_core)))]
+#[cfg(all(
+    feature = "portable_atomic",
+    not(portable_atomic_unsafe_assume_single_core)
+))]
 core::compile_error!("The feature \"portable_atomic\" requires the \"portable_atomic_unsafe_assume_single_core\" cfg flag to be enabled. See https://docs.rs/portable-atomic/latest/portable_atomic/#optional-cfg.");
 
-#[cfg(all(feature = "barrier", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "barrier",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "barrier")))]
 pub mod barrier;
-#[cfg(all(feature = "lazy", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "lazy",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "lazy")))]
 pub mod lazy;
-#[cfg(all(feature = "mutex", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "mutex",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "mutex")))]
 pub mod mutex;
-#[cfg(all(feature = "once", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "once",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "once")))]
 pub mod once;
 pub mod relax;
-#[cfg(all(feature = "rwlock", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "rwlock",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
 pub mod rwlock;
 
-#[cfg(all(feature = "mutex", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "mutex",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "mutex")))]
 pub use mutex::MutexGuard;
 #[cfg(feature = "std")]
 #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub use relax::Yield;
 pub use relax::{RelaxStrategy, Spin};
-#[cfg(all(feature = "rwlock", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "rwlock",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
 pub use rwlock::RwLockReadGuard;
 
@@ -110,7 +155,13 @@ pub use rwlock::RwLockReadGuard;
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
-#[cfg(all(feature = "barrier", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "barrier",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "barrier")))]
 pub type Barrier = crate::barrier::Barrier;
 
@@ -118,7 +169,13 @@ pub type Barrier = crate::barrier::Barrier;
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
-#[cfg(all(feature = "lazy", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "lazy",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "lazy")))]
 pub type Lazy<T, F = fn() -> T> = crate::lazy::Lazy<T, F>;
 
@@ -126,7 +183,13 @@ pub type Lazy<T, F = fn() -> T> = crate::lazy::Lazy<T, F>;
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
-#[cfg(all(feature = "mutex", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "mutex",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "mutex")))]
 pub type Mutex<T> = crate::mutex::Mutex<T>;
 
@@ -134,7 +197,13 @@ pub type Mutex<T> = crate::mutex::Mutex<T>;
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
-#[cfg(all(feature = "once", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "once",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "once")))]
 pub type Once<T = ()> = crate::once::Once<T>;
 
@@ -142,7 +211,13 @@ pub type Once<T = ()> = crate::once::Once<T>;
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
-#[cfg(all(feature = "rwlock", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "rwlock",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
 pub type RwLock<T> = crate::rwlock::RwLock<T>;
 
@@ -151,7 +226,13 @@ pub type RwLock<T> = crate::rwlock::RwLock<T>;
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
-#[cfg(all(feature = "rwlock", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "rwlock",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
 pub type RwLockUpgradableGuard<'a, T> = crate::rwlock::RwLockUpgradableGuard<'a, T>;
 
@@ -159,7 +240,13 @@ pub type RwLockUpgradableGuard<'a, T> = crate::rwlock::RwLockUpgradableGuard<'a,
 ///
 /// A note for advanced users: this alias exists to avoid subtle type inference errors due to the default relax
 /// strategy type parameter. If you need a non-default relax strategy, use the fully-qualified path.
-#[cfg(all(feature = "rwlock", any(not(feature = "portable_atomic"), all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core))))]
+#[cfg(all(
+    feature = "rwlock",
+    any(
+        not(feature = "portable_atomic"),
+        all(feature = "portable_atomic", portable_atomic_unsafe_assume_single_core)
+    )
+))]
 #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
 pub type RwLockWriteGuard<'a, T> = crate::rwlock::RwLockWriteGuard<'a, T>;
 
