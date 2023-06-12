@@ -39,12 +39,13 @@ impl<T, R> Default for Once<T, R> {
 
 impl<T: fmt::Debug, R> fmt::Debug for Once<T, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.get() {
-            Some(s) => write!(f, "Once {{ data: ")
-                .and_then(|()| s.fmt(f))
-                .and_then(|()| write!(f, "}}")),
-            None => write!(f, "Once {{ <uninitialized> }}"),
-        }
+        let mut d = f.debug_tuple("Once");
+        let d = if let Some(x) = self.get() {
+            d.field(&x)
+        } else {
+            d.field(&format_args!("<uninit>"))
+        };
+        d.finish()
     }
 }
 
@@ -461,7 +462,7 @@ impl<T, R> Once<T, R> {
         }
     }
 
-    /// Returns a the inner value if the [`Once`] has been initialized.  
+    /// Returns a the inner value if the [`Once`] has been initialized.
     /// # Safety
     ///
     /// This is *extremely* unsafe if the `Once` has not already been initialized because a reference to uninitialized

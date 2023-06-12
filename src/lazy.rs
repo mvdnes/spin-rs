@@ -45,10 +45,13 @@ pub struct Lazy<T, F = fn() -> T, R = Spin> {
 
 impl<T: fmt::Debug, F, R> fmt::Debug for Lazy<T, F, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Lazy")
-            .field("cell", &self.cell)
-            .field("init", &"..")
-            .finish()
+        let mut d = f.debug_tuple("Lazy");
+        let d = if let Some(x) = self.cell.get() {
+            d.field(&x)
+        } else {
+            d.field(&format_args!("<uninit>"))
+        };
+        d.finish()
     }
 }
 
