@@ -86,7 +86,7 @@ type InnerMutexGuard<'a, T> = self::ticket::TicketMutexGuard<'a, T>;
 /// let barrier = Arc::new(Barrier::new(thread_count + 1));
 ///
 /// # let mut ts = Vec::new();
-/// for _ in (0..thread_count) {
+/// for _ in 0..thread_count {
 ///     let my_barrier = barrier.clone();
 ///     let my_lock = spin_mutex.clone();
 /// # let t =
