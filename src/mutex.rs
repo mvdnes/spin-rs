@@ -6,12 +6,12 @@
 //!
 //! `ticket_mutex` is disabled by default.
 //!
-//! [`Mutex`]: ../struct.Mutex.html
-//! [`MutexGuard`]: ../struct.MutexGuard.html
-//! [`TicketMutex`]: ./struct.TicketMutex.html
-//! [`TicketMutexGuard`]: ./struct.TicketMutexGuard.html
-//! [`SpinMutex`]: ./struct.SpinMutex.html
-//! [`SpinMutexGuard`]: ./struct.SpinMutexGuard.html
+//! [`Mutex`]: ./struct.Mutex.html
+//! [`MutexGuard`]: ./struct.MutexGuard.html
+//! [`TicketMutex`]: ./ticket/struct.TicketMutex.html
+//! [`TicketMutexGuard`]: ./ticket/struct.TicketMutexGuard.html
+//! [`SpinMutex`]: ./spin/struct.SpinMutex.html
+//! [`SpinMutexGuard`]: ./spin/struct.SpinMutexGuard.html
 
 #[cfg(feature = "spin_mutex")]
 #[cfg_attr(docsrs, doc(cfg(feature = "spin_mutex")))]
