@@ -74,6 +74,8 @@ The crate comes with a few feature flags that you may wish to use.
 
 - `spin_mutex` enables the `SpinMutex` type.
 
+- `irq_mutex` enables the `IrqMutex` type.
+
 - `ticket_mutex` enables the `TicketMutex` type.
 
 - `use_ticket_mutex` switches to a ticket lock for the implementation of `Mutex`. This
