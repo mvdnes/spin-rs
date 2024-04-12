@@ -34,25 +34,36 @@ pub mod fair;
 #[cfg_attr(docsrs, doc(cfg(feature = "fair_mutex")))]
 pub use self::fair::{FairMutex, FairMutexGuard, Starvation};
 
+#[cfg(feature = "irq_mutex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "irq_mutex")))]
+pub mod interrupt;
+#[cfg(feature = "irq_mutex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "spin_mutex")))]
+pub use self::interrupt::{IrqMutex, IrqMutexGuard};
+
 use crate::{RelaxStrategy, Spin};
 use core::{
     fmt,
     ops::{Deref, DerefMut},
 };
 
-#[cfg(all(not(feature = "spin_mutex"), not(feature = "use_ticket_mutex")))]
-compile_error!("The `mutex` feature flag was used (perhaps through another feature?) without either `spin_mutex` or `use_ticket_mutex`. One of these is required.");
+#[cfg(all(not(feature = "spin_mutex"), not(feature = "use_ticket_mutex"), not(feature = "irq_mutex") ))]
+compile_error!("The `mutex` feature flag was used (perhaps through another feature?) without either `spin_mutex`, `use_ticket_mutex` or `irq_mutex`. One of these is required.");
 
-#[cfg(all(not(feature = "use_ticket_mutex"), feature = "spin_mutex"))]
+#[cfg(all(not(any(feature = "use_ticket_mutex", feature = "irq_mutex")), feature = "spin_mutex"))]
 type InnerMutex<T, R> = self::spin::SpinMutex<T, R>;
-#[cfg(all(not(feature = "use_ticket_mutex"), feature = "spin_mutex"))]
+#[cfg(all(not(any(feature = "use_ticket_mutex", feature = "irq_mutex")), feature = "spin_mutex"))]
 type InnerMutexGuard<'a, T> = self::spin::SpinMutexGuard<'a, T>;
 
-#[cfg(feature = "use_ticket_mutex")]
+#[cfg(all(not(any(feature = "irq_mutex", feature = "spin_mutex")), feature = "use_ticket_mutex"))]
 type InnerMutex<T, R> = self::ticket::TicketMutex<T, R>;
-#[cfg(feature = "use_ticket_mutex")]
+#[cfg(all(not(any(feature = "irq_mutex", feature = "spin_mutex")), feature = "use_ticket_mutex"))]
 type InnerMutexGuard<'a, T> = self::ticket::TicketMutexGuard<'a, T>;
 
+#[cfg(all(not(any(feature = "use_ticket_mutex", feature = "spin_mutex")), feature = "irq_mutex"))]
+type InnerMutex<T, R> = self::interrupt::IrqMutex<T, R>;
+#[cfg(all(not(any(feature = "use_ticket_mutex", feature = "spin_mutex")), feature = "irq_mutex"))]
+type InnerMutexGuard<'a, T> = self::interrupt::IrqMutexGuard<'a, T>;
 /// A spin-based lock providing mutually exclusive access to data.
 ///
 /// The implementation uses either a ticket mutex or a regular spin mutex depending on whether the `spin_mutex` or

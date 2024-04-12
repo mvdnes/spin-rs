@@ -32,6 +32,9 @@ ticket_mutex = ["mutex"]
 # Enables `FairMutex`.
 fair_mutex = ["mutex"]
 
+# Enables `IrqMutex`.
+irq_mutex = ["mutex"]
+
 # Enables the non-default ticket mutex implementation for `Mutex`.
 use_ticket_mutex = ["mutex", "ticket_mutex"]
 
