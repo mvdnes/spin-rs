@@ -1,57 +1,14 @@
-//! Locks that have the same behaviour as a mutex.
-//!
-//! The [`Mutex`] in the root of the crate, can be configured using the `ticket_mutex` feature.
-//! If it's enabled, [`TicketMutex`] and [`TicketMutexGuard`] will be re-exported as [`Mutex`]
-//! and [`MutexGuard`], otherwise the [`SpinMutex`] and guard will be re-exported.
-//!
-//! `ticket_mutex` is disabled by default.
-//!
-//! [`Mutex`]: ./struct.Mutex.html
-//! [`MutexGuard`]: ./struct.MutexGuard.html
-//! [`TicketMutex`]: ./ticket/struct.TicketMutex.html
-//! [`TicketMutexGuard`]: ./ticket/struct.TicketMutexGuard.html
-//! [`SpinMutex`]: ./spin/struct.SpinMutex.html
-//! [`SpinMutexGuard`]: ./spin/struct.SpinMutexGuard.html
+use critical_section::RestoreState;
+use critical_section::acquire;
+use critical_section::release;
 
-#[cfg(feature = "spin_mutex")]
-#[cfg_attr(docsrs, doc(cfg(feature = "spin_mutex")))]
-pub mod spin;
-#[cfg(feature = "spin_mutex")]
-#[cfg_attr(docsrs, doc(cfg(feature = "spin_mutex")))]
-pub use self::spin::{SpinMutex, SpinMutexGuard};
-
-#[cfg(feature = "ticket_mutex")]
-#[cfg_attr(docsrs, doc(cfg(feature = "ticket_mutex")))]
-pub mod ticket;
-#[cfg(feature = "ticket_mutex")]
-#[cfg_attr(docsrs, doc(cfg(feature = "ticket_mutex")))]
-pub use self::ticket::{TicketMutex, TicketMutexGuard};
-
-#[cfg(feature = "fair_mutex")]
-#[cfg_attr(docsrs, doc(cfg(feature = "fair_mutex")))]
-pub mod fair;
-#[cfg(feature = "fair_mutex")]
-#[cfg_attr(docsrs, doc(cfg(feature = "fair_mutex")))]
-pub use self::fair::{FairMutex, FairMutexGuard, Starvation};
-
-use crate::{RelaxStrategy, Spin};
 use core::{
     fmt,
     ops::{Deref, DerefMut},
 };
 
-#[cfg(all(not(feature = "spin_mutex"), not(feature = "use_ticket_mutex")))]
-compile_error!("The `mutex` feature flag was used (perhaps through another feature?) without either `spin_mutex` or `use_ticket_mutex`. One of these is required.");
-
-#[cfg(all(not(feature = "use_ticket_mutex"), feature = "spin_mutex"))]
-type InnerMutex<T, R> = self::spin::SpinMutex<T, R>;
-#[cfg(all(not(feature = "use_ticket_mutex"), feature = "spin_mutex"))]
-type InnerMutexGuard<'a, T> = self::spin::SpinMutexGuard<'a, T>;
-
-#[cfg(feature = "use_ticket_mutex")]
-type InnerMutex<T, R> = self::ticket::TicketMutex<T, R>;
-#[cfg(feature = "use_ticket_mutex")]
-type InnerMutexGuard<'a, T> = self::ticket::TicketMutexGuard<'a, T>;
+type InnerMutex<T> = crate::Mutex<T>;
+type InnerMutexGuard<'a, T> = crate::MutexGuard<'a, T>;
 
 /// A spin-based lock providing mutually exclusive access to data.
 ///
@@ -110,12 +67,9 @@ type InnerMutexGuard<'a, T> = self::ticket::TicketMutexGuard<'a, T>;
 /// #     t.join().unwrap();
 /// # }
 /// ```
-pub struct Mutex<T: ?Sized, R = Spin> {
-    inner: InnerMutex<T, R>,
+pub struct IrqMutex<T: ?Sized> {
+    inner: InnerMutex<T>
 }
-
-unsafe impl<T: ?Sized + Send, R> Sync for Mutex<T, R> {}
-unsafe impl<T: ?Sized + Send, R> Send for Mutex<T, R> {}
 
 /// A generic guard that will protect some data access and
 /// uses either a ticket lock or a normal spin mutex.
@@ -124,11 +78,12 @@ unsafe impl<T: ?Sized + Send, R> Send for Mutex<T, R> {}
 ///
 /// [`TicketMutexGuard`]: ./struct.TicketMutexGuard.html
 /// [`SpinMutexGuard`]: ./struct.SpinMutexGuard.html
-pub struct MutexGuard<'a, T: 'a + ?Sized> {
+pub struct IrqMutexGuard<'a, T: 'a + ?Sized> {
     inner: InnerMutexGuard<'a, T>,
+    irq_state: RestoreState
 }
 
-impl<T, R> Mutex<T, R> {
+impl<T> IrqMutex<T> {
     /// Creates a new [`Mutex`] wrapping the supplied data.
     ///
     /// # Example
@@ -165,7 +120,7 @@ impl<T, R> Mutex<T, R> {
     }
 }
 
-impl<T: ?Sized, R: RelaxStrategy> Mutex<T, R> {
+impl<T: ?Sized> IrqMutex<T> {
     /// Locks the [`Mutex`] and returns a guard that permits access to the inner data.
     ///
     /// The returned value may be dereferenced for data access
@@ -181,14 +136,16 @@ impl<T: ?Sized, R: RelaxStrategy> Mutex<T, R> {
     /// }
     /// ```
     #[inline(always)]
-    pub fn lock(&self) -> MutexGuard<T> {
-        MutexGuard {
+    pub fn lock(&self) -> IrqMutexGuard<T> {
+        let state = unsafe{acquire()};
+        IrqMutexGuard {
             inner: self.inner.lock(),
+            irq_state: state
         }
     }
 }
 
-impl<T: ?Sized, R> Mutex<T, R> {
+impl<T: ?Sized> IrqMutex<T> {
     /// Returns `true` if the lock is currently held.
     ///
     /// # Safety
@@ -227,10 +184,15 @@ impl<T: ?Sized, R> Mutex<T, R> {
     /// assert!(maybe_guard2.is_none());
     /// ```
     #[inline(always)]
-    pub fn try_lock(&self) -> Option<MutexGuard<T>> {
-        self.inner
+    pub fn try_lock(&self) -> Option<IrqMutexGuard<T>> {
+        let state = unsafe{acquire()};
+        let maybe_guard = self.inner
             .try_lock()
-            .map(|guard| MutexGuard { inner: guard })
+            .map(|guard| IrqMutexGuard { inner: guard, irq_state: state });
+        if maybe_guard.is_none() {
+            unsafe{release(state)};
+        }
+        maybe_guard
     }
 
     /// Returns a mutable reference to the underlying data.
@@ -252,25 +214,25 @@ impl<T: ?Sized, R> Mutex<T, R> {
     }
 }
 
-impl<T: ?Sized + fmt::Debug, R> fmt::Debug for Mutex<T, R> {
+impl<T: ?Sized + fmt::Debug> fmt::Debug for IrqMutex<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&self.inner, f)
     }
 }
 
-impl<T: ?Sized + Default, R> Default for Mutex<T, R> {
+impl<T: ?Sized + Default> Default for IrqMutex<T> {
     fn default() -> Self {
         Self::new(Default::default())
     }
 }
 
-impl<T, R> From<T> for Mutex<T, R> {
+impl<T> From<T> for IrqMutex<T> {
     fn from(data: T) -> Self {
         Self::new(data)
     }
 }
 
-impl<'a, T: ?Sized> MutexGuard<'a, T> {
+impl<'a, T: ?Sized> IrqMutexGuard<'a, T> {
     /// Leak the lock guard, yielding a mutable reference to the underlying data.
     ///
     /// Note that this function will permanently lock the original [`Mutex`].
@@ -289,52 +251,34 @@ impl<'a, T: ?Sized> MutexGuard<'a, T> {
     }
 }
 
-impl<'a, T: ?Sized + fmt::Debug> fmt::Debug for MutexGuard<'a, T> {
+impl<'a, T: ?Sized + fmt::Debug> fmt::Debug for IrqMutexGuard<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
     }
 }
 
-impl<'a, T: ?Sized + fmt::Display> fmt::Display for MutexGuard<'a, T> {
+impl<'a, T: ?Sized + fmt::Display> fmt::Display for IrqMutexGuard<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
     }
 }
 
-impl<'a, T: ?Sized> Deref for MutexGuard<'a, T> {
+impl<'a, T: ?Sized> Deref for IrqMutexGuard<'a, T> {
     type Target = T;
     fn deref(&self) -> &T {
         &*self.inner
     }
 }
 
-impl<'a, T: ?Sized> DerefMut for MutexGuard<'a, T> {
+impl<'a, T: ?Sized> DerefMut for IrqMutexGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
         &mut *self.inner
     }
 }
 
-#[cfg(feature = "lock_api")]
-unsafe impl<R: RelaxStrategy> lock_api_crate::RawMutex for Mutex<(), R> {
-    type GuardMarker = lock_api_crate::GuardSend;
-
-    const INIT: Self = Self::new(());
-
-    fn lock(&self) {
-        // Prevent guard destructor running
-        core::mem::forget(Self::lock(self));
-    }
-
-    fn try_lock(&self) -> bool {
-        // Prevent guard destructor running
-        Self::try_lock(self).map(core::mem::forget).is_some()
-    }
-
-    unsafe fn unlock(&self) {
-        self.force_unlock();
-    }
-
-    fn is_locked(&self) -> bool {
-        self.inner.is_locked()
+impl<'a, T: ?Sized> Drop for IrqMutexGuard<'a, T> {
+    /// The dropping of the IrqMutexGuard will release the lock it was created from and restore Interrupts to its former value
+    fn drop(&mut self) {
+        unsafe{release(self.irq_state)};
     }
 }

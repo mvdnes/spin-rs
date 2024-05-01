@@ -74,8 +74,6 @@ The crate comes with a few feature flags that you may wish to use.
 
 - `spin_mutex` enables the `SpinMutex` type.
 
-- `irq_mutex` enables the `IrqMutex` type.
-
 - `ticket_mutex` enables the `TicketMutex` type.
 
 - `use_ticket_mutex` switches to a ticket lock for the implementation of `Mutex`. This
@@ -98,6 +96,9 @@ The crate comes with a few feature flags that you may wish to use.
   to support platforms without native atomic operations (Cortex-M0, etc.).
   The `portable_atomic_unsafe_assume_single_core` cfg or `critical-section` feature
   of `portable-atomic` crate must also be set by the final binary crate.
+
+- `irqmutex` enables the `IryMutex` type and usage of the `critical-section` crate
+  The user has to supply a implementation of critical-section aquire()/restore(); See the `critical-section` page for details
 
   When using the cfg, this can be done by adapting the following snippet to the `.cargo/config` file:
   ```
