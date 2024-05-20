@@ -458,7 +458,7 @@ impl<T: ?Sized + fmt::Debug, R> fmt::Debug for RwLock<T, R> {
         match self.try_read() {
             Some(guard) => write!(f, "RwLock {{ data: ")
                 .and_then(|()| (&*guard).fmt(f))
-                .and_then(|()| write!(f, "}}")),
+                .and_then(|()| write!(f, " }}")),
             None => write!(f, "RwLock {{ <locked> }}"),
         }
     }
