@@ -98,9 +98,13 @@ impl<T> IrqMutex<T> {
     ///     // do something with lock
     ///     drop(lock);
     /// }
+    /// 
+    /// UNSAFE:
+    /// When IrqMutex's are nested, the innter IrqMutexGuard must not outlive the outer IrqMutexGuard, a violation leads to Undefinded Interrupt Behavior
+    /// 
     /// ```
     #[inline(always)]
-    pub const fn new(value: T) -> Self {
+    pub const unsafe fn new(value: T) -> Self {
         Self {
             inner: InnerMutex::new(value),
         }
@@ -236,6 +240,7 @@ impl<'a, T: ?Sized> IrqMutexGuard<'a, T> {
     /// Leak the lock guard, yielding a mutable reference to the underlying data.
     ///
     /// Note that this function will permanently lock the original [`Mutex`].
+    /// Restores the Interrupt State
     ///
     /// ```
     /// let mylock = spin::Mutex::new(0);
@@ -247,6 +252,7 @@ impl<'a, T: ?Sized> IrqMutexGuard<'a, T> {
     /// ```
     #[inline(always)]
     pub fn leak(this: Self) -> &'a mut T {
+        unsafe { release(this.irq_state) }
         InnerMutexGuard::leak(this.inner)
     }
 }
