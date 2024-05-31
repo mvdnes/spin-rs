@@ -99,12 +99,11 @@ impl<T> IrqMutex<T> {
     ///     drop(lock);
     /// }
     /// 
-    /// UNSAFE:
-    /// When IrqMutex's are nested, the innter IrqMutexGuard must not outlive the outer IrqMutexGuard, a violation leads to Undefinded Interrupt Behavior
+    ///
     /// 
     /// ```
     #[inline(always)]
-    pub const unsafe fn new(value: T) -> Self {
+    pub const fn new(value: T) -> Self {
         Self {
             inner: InnerMutex::new(value),
         }
@@ -139,8 +138,10 @@ impl<T: ?Sized> IrqMutex<T> {
     ///     // The lock is implicitly dropped at the end of the scope
     /// }
     /// ```
+    /// UNSAFE:
+    /// When IrqMutex's are nested, the innter IrqMutexGuard must not outlive the outer IrqMutexGuard, a violation leads to Undefinded Interrupt Behavior
     #[inline(always)]
-    pub fn lock(&self) -> IrqMutexGuard<T> {
+    pub unsafe fn lock(&self) -> IrqMutexGuard<T> {
         let state = unsafe{acquire()};
         IrqMutexGuard {
             inner: self.inner.lock(),
