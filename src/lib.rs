@@ -99,6 +99,14 @@ pub use relax::{RelaxStrategy, Spin};
 #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
 pub use rwlock::RwLockReadGuard;
 
+
+#[cfg(feature = "critical-section")]
+extern crate critical_section;
+
+#[cfg(feature = "irq_mutex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "irq_mutex")))]
+pub mod irqmutex;
+
 // Avoid confusing inference errors by aliasing away the relax strategy parameter. Users that need to use a different
 // relax strategy can do so by accessing the types through their fully-qualified path. This is a little bit horrible
 // but sadly adding a default type parameter is *still* a breaking change in Rust (for understandable reasons).
