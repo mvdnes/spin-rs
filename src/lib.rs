@@ -194,6 +194,18 @@ pub mod lock_api {
     #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
     pub type RwLockUpgradableReadGuard<'a, T> =
         lock_api_crate::RwLockUpgradableReadGuard<'a, crate::RwLock<()>, T>;
+
+    /// A guard returned by [RwLockReadGuard::map] that provides immutable data access (compatible with [`lock_api`](https://crates.io/crates/lock_api)).
+    #[cfg(feature = "rwlock")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
+    pub type MappedRwLockReadGuard<'a, T> =
+        lock_api_crate::MappedRwLockReadGuard<'a, crate::RwLock<()>, T>;
+
+    /// A guard returned by [RwLockWriteGuard::map] that provides mutable data access (compatible with [`lock_api`](https://crates.io/crates/lock_api)).
+    #[cfg(feature = "rwlock")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]
+    pub type MappedRwLockWriteGuard<'a, T> =
+        lock_api_crate::MappedRwLockWriteGuard<'a, crate::RwLock<()>, T>;
 }
 
 /// In the event of an invalid operation, it's best to abort the current process.
