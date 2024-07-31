@@ -931,8 +931,8 @@ unsafe impl<R: RelaxStrategy> lock_api_crate::RawRwLockDowngrade for RwLock<(), 
     }
 }
 
-#[cfg(feature = "lock_api1")]
-unsafe impl lock_api::RawRwLockUpgradeDowngrade for RwLock<()> {
+#[cfg(feature = "lock_api")]
+unsafe impl<R: RelaxStrategy> lock_api_crate::RawRwLockUpgradeDowngrade for RwLock<(), R> {
     unsafe fn downgrade_upgradable(&self) {
         let tmp_guard = RwLockUpgradableGuard {
             inner: self,
