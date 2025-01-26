@@ -1,6 +1,6 @@
 [package]
 name = "spin"
-version = "0.9.8"
+version = "0.10.0"
 authors = [
     "Mathijs van de Nes <git@mathijs.vd-nes.nl>",
     "John Ericson <git@JohnEricson.me>",
@@ -10,7 +10,7 @@ license = "MIT"
 repository = "https://github.com/mvdnes/spin-rs.git"
 keywords = ["spinlock", "mutex", "rwlock"]
 description = "Spin-based synchronization primitives"
-rust-version = "1.38"
+rust-version = "1.60"
 
 [dependencies]
 lock_api_crate = { package = "lock_api", version = "0.4", optional = true }
@@ -48,7 +48,7 @@ lazy = ["once"]
 barrier = ["mutex"]
 
 # Enables `lock_api`-compatible types that use the primitives in this crate internally.
-lock_api = ["lock_api_crate"]
+lock_api = ["dep:lock_api_crate"]
 
 # Enables std-only features such as yield-relaxing.
 std = []
@@ -61,7 +61,7 @@ std = []
 # implementation that sound for your system by implementing an unsafe trait.
 # See the documentation for the `portable-atomic` crate for more information:
 # https://docs.rs/portable-atomic/latest/portable_atomic/#optional-cfg
-portable_atomic = ["portable-atomic"]
+portable_atomic = ["dep:portable-atomic"]
 
 [package.metadata.docs.rs]
 all-features = true
