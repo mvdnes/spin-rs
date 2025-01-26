@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # Unreleased
 
+[0.10.0] - (Pending)
+
 ### Added
 
 ### Changed
+
+- Updated MSRV to 1.60
+- Switched to `dep:` syntax in Cargo.toml to avoid confusion
 
 ### Fixed
 
