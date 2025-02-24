@@ -59,16 +59,23 @@
 //!   starvation
 //!
 //! - `std` enables support for thread yielding instead of spinning
+//!
+//! - `portable-atomic` enables usage of the `portable-atomic` crate
+//!   to support platforms without native atomic operations (Cortex-M0, etc.).
+//!   See the documentation for the `portable-atomic` crate for more information
+//!   with some requirements for no-std build:
+//!   https://github.com/taiki-e/portable-atomic#optional-features
+
 
 #[cfg(any(test, feature = "std"))]
 extern crate core;
 
-#[cfg(feature = "portable_atomic")]
+#[cfg(feature = "portable-atomic")]
 extern crate portable_atomic;
 
-#[cfg(not(feature = "portable_atomic"))]
+#[cfg(not(feature = "portable-atomic"))]
 use core::sync::atomic;
-#[cfg(feature = "portable_atomic")]
+#[cfg(feature = "portable-atomic")]
 use portable_atomic as atomic;
 
 #[cfg(feature = "barrier")]

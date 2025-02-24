@@ -10,7 +10,7 @@ license = "MIT"
 repository = "https://github.com/mvdnes/spin-rs.git"
 keywords = ["spinlock", "mutex", "rwlock"]
 description = "Spin-based synchronization primitives"
-rust-version = "1.38"
+rust-version = "1.60"
 
 [dependencies]
 lock_api_crate = { package = "lock_api", version = "0.4", optional = true }
@@ -48,19 +48,20 @@ lazy = ["once"]
 barrier = ["mutex"]
 
 # Enables `lock_api`-compatible types that use the primitives in this crate internally.
-lock_api = ["lock_api_crate"]
+lock_api = ["dep:lock_api_crate"]
 
 # Enables std-only features such as yield-relaxing.
 std = []
 
-# Use the portable_atomic crate to support platforms without native atomic operations.
+# Use the `portable-atomic` crate to support platforms without native atomic operations.
 # The `portable_atomic_unsafe_assume_single_core` cfg or `critical-section` feature
 # of `portable-atomic` crate must also be set by the final binary crate.
-# When using the cfg, note that it is unsafe and enabling it for multicore systems is unsound.
-# When using the `critical-section` feature, you need to implement the critical-section
-# implementation that sound for your system by implementing an unsafe trait.
-# See the documentation for the `portable-atomic` crate for more information:
-# https://docs.rs/portable-atomic/latest/portable_atomic/#optional-cfg
+# See the documentation for the `portable-atomic` crate for more information
+# with some requirements for no-std build:
+# https://github.com/taiki-e/portable-atomic#optional-features
+portable-atomic = ["dep:portable-atomic"]
+
+# Deprecated alias:
 portable_atomic = ["portable-atomic"]
 
 [package.metadata.docs.rs]
