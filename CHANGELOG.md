@@ -9,7 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- More intuitive `portable-atomic` option
+
 ### Changed
+
+### Fixed
+
+# [0.10.0] - (Pending)
+
+### Added
+
+### Changed
+
+- Updated MSRV to 1.60
+- Use `dep:` syntax in Cargo.toml
 
 ### Fixed
 
