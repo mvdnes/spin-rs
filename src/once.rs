@@ -8,9 +8,7 @@ use core::{cell::UnsafeCell, fmt, marker::PhantomData, mem::MaybeUninit};
 
 /// A primitive that provides lazy one-time initialization.
 ///
-/// Unlike its `std::sync` equivalent, this is generalized such that the closure returns a
-/// value to be stored by the [`Once`] (`std::sync::Once` can be trivially emulated with
-/// `Once`).
+/// This is analogous to `std::sync::OnceLock`.
 ///
 /// Because [`Once::new`] is `const`, this primitive may be used to safely initialize statics.
 ///

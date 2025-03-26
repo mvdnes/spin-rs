@@ -8,7 +8,7 @@
 //!
 //! # Features
 //!
-//! - `Mutex`, `RwLock`, `Once`/`SyncOnceCell`, and `SyncLazy` equivalents
+//! - `Mutex`, `RwLock`, `OnceLock`, and `LazyLock` equivalents
 //!
 //! - Support for `no_std` environments
 //!
@@ -38,8 +38,6 @@
 //! - [`RwLockUpgradableGuard`] supports being upgraded into a [`RwLockWriteGuard`].
 //!
 //! - Guards support [leaking](https://doc.rust-lang.org/nomicon/leaking.html).
-//!
-//! - [`Once`] owns the value returned by its `call_once` initializer.
 //!
 //! - [`RwLock`] supports counting readers and writers.
 //!
