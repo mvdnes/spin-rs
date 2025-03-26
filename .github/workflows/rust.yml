@@ -36,6 +36,14 @@ jobs:
     - name: Ensure we don't depend on libstd
       run: cargo hack build --target thumbv7m-none-eabi --no-dev-deps --no-default-features
 
+  semver:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Check semver
+      uses: obi1kenobi/cargo-semver-checks-action@v2
+
   msrv:
     runs-on: ubuntu-latest
     strategy:

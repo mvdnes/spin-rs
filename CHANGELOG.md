@@ -9,20 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- More intuitive `portable-atomic` option
-
 ### Changed
 
 ### Fixed
 
-# [0.10.0] - (Pending)
+# [0.10.0] - 2025-03-26
 
 ### Added
+
+- `Mutex::try_lock_weak`
+- `RwLock::try_write_weak`
+- `RwLock::try_upgrade_weak`
 
 ### Changed
 
 - Updated MSRV to 1.60
 - Use `dep:` syntax in Cargo.toml
+- `portable_atomic` feature has been renamed to `portable-atomic`, for consistency.
 
 ### Fixed
 
